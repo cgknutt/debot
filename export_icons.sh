@@ -1,3 +1,38 @@
+#!/bin/bash
+
+# Check if ImageMagick is installed
+if ! command -v magick &> /dev/null; then
+    echo "ImageMagick is not installed. Installing via Homebrew..."
+    brew install imagemagick
+fi
+
+# Create the directory structure
+mkdir -p debot/debot/Assets.xcassets/AppIcon.appiconset
+
+# Array of sizes needed for iOS app icons
+sizes=(
+    "1024x1024"
+    "180x180"
+    "167x167"
+    "152x152"
+    "120x120"
+    "87x87"
+    "80x80"
+    "76x76"
+    "60x60"
+    "58x58"
+    "40x40"
+    "29x29"
+    "20x20"
+)
+
+# Export icons in different sizes
+for size in "${sizes[@]}"; do
+    magick "debot_icon.png" -strip -quality 100 -resize "${size}^" -gravity center -extent "${size}" "debot/debot/Assets.xcassets/AppIcon.appiconset/icon_${size}.png"
+done
+
+# Create Contents.json
+cat > debot/debot/Assets.xcassets/AppIcon.appiconset/Contents.json << 'EOL'
 {
   "images" : [
     {
@@ -114,3 +149,6 @@
     "author" : "xcode"
   }
 }
+EOL
+
+echo "Icon export complete! The icons have been added to your Xcode project's asset catalog." 
