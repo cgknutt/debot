@@ -11,12 +11,9 @@ import SwiftUI
 struct debotApp: App {
     var body: some Scene {
         WindowGroup {
-            NavigationView {
-                ContentView()
-                    .navigationBarTitleDisplayMode(.large)
-            }
-            .preferredColorScheme(.light) // You can change this to .dark or remove it for system default
-            .accentColor(.blue) // You can customize your app's accent color here
+            ContentView()
+                .preferredColorScheme(.light) // Use the light color scheme
+                .accentColor(.blue) // Use blue accent color for the app
         }
     }
 }

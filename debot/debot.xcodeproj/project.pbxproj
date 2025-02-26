@@ -29,9 +29,23 @@
 		804C29562D6D776800C4EA5B /* debotUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = debotUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		80CA63A22D6E466D00B887CB /* Exceptions for "debot" folder in "debot" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				Views/Components/Screenshots/README.md,
+			);
+			target = 804C293B2D6D776700C4EA5B /* debot */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		804C293E2D6D776700C4EA5B /* debot */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				80CA63A22D6E466D00B887CB /* Exceptions for "debot" folder in "debot" target */,
+			);
 			path = debot;
 			sourceTree = "<group>";
 		};
