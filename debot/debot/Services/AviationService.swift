@@ -1,129 +1,114 @@
 import Foundation
+import SwiftUI
 
+/// Service for interacting with aviation data API
 class AviationService {
-    private let baseURL = "https://api.aviationstack.com/v1"
-    private let apiKey = "21cb578c508633a97e677a749d2f38e3"
+    private let baseURL = "https://api.example.com/v1"
+    private let apiKey = "demo_key" // Replace with your actual API key
     
+    // Tracking API request count to manage free tier limits
+    private(set) var requestCount = 0
+    
+    // Error types for aviation API
     enum AviationError: Error {
         case invalidURL
         case noData
-        case decodingError
+        case decodingError(String)
         case apiError(String)
     }
     
-    struct FlightResponse: Codable {
-        let pagination: Pagination
-        let data: [Flight]
-    }
+    // MARK: - Flight Model
     
-    struct Pagination: Codable {
-        let limit: Int
-        let offset: Int
-        let count: Int
-        let total: Int
-    }
+    // Using the Flight model defined in Models/Flight.swift
+    // We don't need a typealias anymore as we can refer to Flight directly
     
-    struct Flight: Codable, Identifiable {
-        let id = UUID()
-        let flight_date: String?
-        let flight_status: String?
-        let departure: FlightLocation
-        let arrival: FlightLocation
-        let airline: Airline
-        let flight: FlightDetails
-        let aircraft: Aircraft?
-        let live: LiveFlightData?
-    }
+    // MARK: - Search Parameters
     
-    struct FlightLocation: Codable {
-        let airport: String?
-        let timezone: String?
-        let iata: String?
-        let icao: String?
-        let terminal: String?
-        let gate: String?
-        let scheduled: String?
-        let estimated: String?
-        let actual: String?
-        let runway: String?
-    }
-    
-    struct Airline: Codable {
-        let name: String?
-        let iata: String?
-        let icao: String?
-    }
-    
-    struct FlightDetails: Codable {
-        let number: String?
-        let iata: String?
-        let icao: String?
-    }
-    
-    struct Aircraft: Codable {
-        let registration: String?
-        let iata: String?
-        let icao: String?
-        let icao24: String?
-    }
-    
-    struct LiveFlightData: Codable {
-        let latitude: Double?
-        let longitude: Double?
-        let altitude: Double?
-        let direction: Double?
-        let speed_horizontal: Double?
-        let speed_vertical: Double?
-    }
-    
-    func getRandomFlight() async throws -> Flight {
-        var components = URLComponents(string: "\(baseURL)/flights")
-        components?.queryItems = [
-            URLQueryItem(name: "access_key", value: apiKey),
-            URLQueryItem(name: "limit", value: "100")
-        ]
+    struct SearchParameters {
+        var flightNumber: String?
+        var departureAirport: String?
+        var arrivalAirport: String?
+        var status: String?
+        var date: Date?
         
-        guard let url = components?.url else {
-            throw AviationError.invalidURL
-        }
-        
-        let (data, response) = try await URLSession.shared.data(from: url)
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AviationError.apiError("Invalid response type")
-        }
-        
-        // Print response for debugging
-        print("API Response Status Code: \(httpResponse.statusCode)")
-        print("API Response Headers: \(httpResponse.allHeaderFields)")
-        
-        // Print response data for debugging
-        if let responseString = String(data: data, encoding: .utf8) {
-            print("API Response Data: \(responseString)")
-        }
-        
-        guard httpResponse.statusCode == 200 else {
-            // Try to parse error message if available
-            if let errorResponse = try? JSONDecoder().decode([String: String].self, from: data),
-               let errorMessage = errorResponse["error"] {
-                throw AviationError.apiError(errorMessage)
-            }
-            throw AviationError.apiError("HTTP Error: \(httpResponse.statusCode)")
-        }
-        
-        let decoder = JSONDecoder()
-        do {
-            let flightResponse = try decoder.decode(FlightResponse.self, from: data)
-            guard !flightResponse.data.isEmpty else {
-                throw AviationError.noData
+        // Build query parameters for the API request
+        func buildQueryItems() -> [URLQueryItem] {
+            var queryItems = [URLQueryItem]()
+            
+            if let flightNumber = flightNumber {
+                queryItems.append(URLQueryItem(name: "flight_number", value: flightNumber))
             }
             
-            // Get a random flight from the response
-            let randomIndex = Int.random(in: 0..<flightResponse.data.count)
-            return flightResponse.data[randomIndex]
+            if let departureAirport = departureAirport {
+                queryItems.append(URLQueryItem(name: "dep_iata", value: departureAirport))
+            }
+            
+            if let arrivalAirport = arrivalAirport {
+                queryItems.append(URLQueryItem(name: "arr_iata", value: arrivalAirport))
+            }
+            
+            if let status = status {
+                queryItems.append(URLQueryItem(name: "status", value: status))
+            }
+            
+            if let date = date {
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "yyyy-MM-dd"
+                queryItems.append(URLQueryItem(name: "date", value: dateFormatter.string(from: date)))
+            }
+            
+            return queryItems
+        }
+    }
+    
+    // MARK: - API Methods
+    
+    func searchFlights(parameters: SearchParameters) async throws -> [Flight] {
+        // In a real implementation, this would make an API request
+        // For demo purposes, we'll return mock data
+        requestCount += 1
+        return MockFlightDataService.shared.searchFlights(query: parameters.flightNumber ?? "")
+    }
+    
+    func getRandomFlight() async throws -> Flight? {
+        // In a real implementation, this would make an API request
+        // For demo purposes, we'll return mock data
+        requestCount += 1
+        return MockFlightDataService.shared.getRandomFlight()
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func makeRequest<T: Decodable>(endpoint: String, queryItems: [URLQueryItem]) async throws -> T {
+        guard var components = URLComponents(string: baseURL + endpoint) else {
+            throw NSError(domain: "com.debot.aviation", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
+        }
+        
+        var allQueryItems = queryItems
+        allQueryItems.append(URLQueryItem(name: "api_key", value: apiKey))
+        components.queryItems = allQueryItems
+        
+        guard let url = components.url else {
+            throw NSError(domain: "com.debot.aviation", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid URL components"])
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse, 
+              (200...299).contains(httpResponse.statusCode) else {
+            throw NSError(domain: "com.debot.aviation", code: 2, 
+                          userInfo: [NSLocalizedDescriptionKey: "Server error or invalid response"])
+        }
+        
+        do {
+            let decoder = JSONDecoder()
+            return try decoder.decode(T.self, from: data)
         } catch {
-            print("Decoding Error: \(error)")
-            throw AviationError.decodingError
+            throw NSError(domain: "com.debot.aviation", code: 3, 
+                          userInfo: [NSLocalizedDescriptionKey: "Failed to decode response: \(error.localizedDescription)"])
         }
     }
 } 

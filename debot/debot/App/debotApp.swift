@@ -12,8 +12,8 @@ struct debotApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .preferredColorScheme(.light) // You can change this to .dark or remove it for system default
-                .accentColor(.blue) // You can customize your app's accent color here
+                .preferredColorScheme(.light) // Use the light color scheme
+                .accentColor(.blue) // Use blue accent color for the app
         }
     }
 }

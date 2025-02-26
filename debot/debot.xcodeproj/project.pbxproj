@@ -34,6 +34,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				Views/Components/Screenshots/README.md,
 			);
 			target = 804C293B2D6D776700C4EA5B /* debot */;
 		};

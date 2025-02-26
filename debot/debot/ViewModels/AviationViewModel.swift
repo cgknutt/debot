@@ -4,7 +4,7 @@ import Foundation
 class AviationViewModel: ObservableObject {
     private let aviationService = AviationService()
     
-    @Published var currentFlight: AviationService.Flight?
+    @Published var currentFlight: Flight?
     @Published var isLoading = false
     @Published var error: String?
     

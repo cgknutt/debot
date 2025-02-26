@@ -124,13 +124,13 @@ struct FlightInfoSection: View {
 
 struct FlightLocationSection: View {
     let title: String
-    let location: AviationService.FlightLocation
+    let location: FlightLocation
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.headline)
-            Text("Airport: \(location.airport)")
+            Text("Airport: \(location.airport ?? "Unknown")")
             Text("Terminal: \(location.terminal ?? "N/A")")
             Text("Gate: \(location.gate ?? "N/A")")
             if let scheduled = location.scheduled {
@@ -141,9 +141,8 @@ struct FlightLocationSection: View {
             }
         }
         .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(10)
+        .background(Color.secondary.opacity(0.1))
+        .cornerRadius(8)
     }
 }
 
