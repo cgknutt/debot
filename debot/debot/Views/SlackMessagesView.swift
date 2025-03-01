@@ -630,7 +630,6 @@ struct MessageRow: View {
                                 .background(
                                     RoundedRectangle(cornerRadius: 10)
                                         .fill(Color.bgSecondary(for: colorScheme))
-                                )
                                 .foregroundColor(reaction.userHasReacted(currentUserId: viewModel.currentUserId) ? 
                                     Theme.Colors.debotOrange : 
                                     Color.textPrimary(for: colorScheme))
@@ -653,6 +652,11 @@ struct MessageRow: View {
         // Add a tap gesture to mark messages as read
         .onTapGesture {
             if !message.isRead {
+                // Provide haptic feedback
+                let impact = UIImpactFeedbackGenerator(style: .light)
+                impact.impactOccurred()
+                
+                // Mark as read in the view model
                 viewModel.markAsRead(messageId: message.id)
             }
         }
@@ -743,6 +747,8 @@ struct MessageRow: View {
         
         if let match = matches.first {
             let url = nsString.substring(with: match.range)
+            // Trim any trailing punctuation that might have been included
+            let cleanUrl = url.trimmingCharacters(in: CharacterSet(charactersIn: ",.!?:;\"'"))
             
             return VStack(alignment: .leading, spacing: 8) {
                 if processedText != url {
@@ -753,7 +759,7 @@ struct MessageRow: View {
                 }
                 
                 // For GIFs or media content
-                if url.contains(".gif") || url.contains("giphy.com") {
+                if cleanUrl.contains(".gif") || cleanUrl.contains("giphy.com") || cleanUrl.contains("tenor.com") {
                     Text("GIF")
                         .font(.system(size: 13, weight: .medium))
                         .padding(.horizontal, 8)
@@ -762,45 +768,90 @@ struct MessageRow: View {
                         .foregroundColor(.blue)
                         .cornerRadius(4)
                     
-                    AsyncImage(url: URL(string: url)) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .cornerRadius(8)
-                    } placeholder: {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(height: 150)
-                            .overlay(
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle())
-                            )
+                    AsyncImage(url: URL(string: cleanUrl)) { phase in
+                        switch phase {
+                        case .empty:
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.gray.opacity(0.2))
+                                .frame(height: 150)
+                                .overlay(
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle())
+                                )
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .cornerRadius(8)
+                        case .failure:
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.gray.opacity(0.2))
+                                .frame(height: 150)
+                                .overlay(
+                                    VStack {
+                                        Image(systemName: "photo")
+                                            .font(.system(size: 20))
+                                            .foregroundColor(.gray)
+                                        Text("Unable to load GIF")
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                    }
+                                )
+                        @unknown default:
+                            EmptyView()
+                        }
                     }
                     .frame(maxHeight: 200)
-                } else if url.contains(".jpg") || url.contains(".jpeg") || url.contains(".png") {
-                    AsyncImage(url: URL(string: url)) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .cornerRadius(8)
-                    } placeholder: {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(height: 150)
-                            .overlay(
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle())
-                            )
+                } else if cleanUrl.contains(".jpg") || cleanUrl.contains(".jpeg") || cleanUrl.contains(".png") || cleanUrl.contains("imgur.com") {
+                    AsyncImage(url: URL(string: cleanUrl)) { phase in
+                        switch phase {
+                        case .empty:
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.gray.opacity(0.2))
+                                .frame(height: 150)
+                                .overlay(
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle())
+                                )
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .cornerRadius(8)
+                        case .failure:
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.gray.opacity(0.2))
+                                .frame(height: 150)
+                                .overlay(
+                                    VStack {
+                                        Image(systemName: "photo")
+                                            .font(.system(size: 20))
+                                            .foregroundColor(.gray)
+                                        Text("Unable to load image")
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                    }
+                                )
+                        @unknown default:
+                            EmptyView()
+                        }
                     }
                     .frame(maxHeight: 200)
                 } else {
                     // For other URLs, display clickable link
-                    Link(destination: URL(string: url) ?? URL(string: "https://example.com")!) {
-                        Text(url)
-                            .font(.system(size: 14))
-                            .foregroundColor(.blue)
-                            .underline()
-                            .lineLimit(2)
+                    Link(destination: URL(string: cleanUrl) ?? URL(string: "https://example.com")!) {
+                        HStack {
+                            Image(systemName: "link")
+                                .font(.system(size: 14))
+                            Text(cleanUrl.count > 50 ? cleanUrl.prefix(47) + "..." : cleanUrl)
+                                .font(.system(size: 14))
+                                .lineLimit(1)
+                        }
+                        .padding(.vertical, 6)
+                        .padding(.horizontal, 10)
+                        .background(Color.blue.opacity(0.1))
+                        .foregroundColor(.blue)
+                        .cornerRadius(6)
                     }
                 }
             }
@@ -854,14 +905,43 @@ struct SlackAttachmentView: View {
             }
             
             if let imageUrl = attachment.imageUrl, !imageUrl.isEmpty {
-                AsyncImage(url: URL(string: imageUrl)) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                } placeholder: {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.2))
-                        .aspectRatio(2/1, contentMode: .fit)
+                // Extract the URL and ensure it's properly formatted
+                let sanitizedUrl = imageUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+                let finalUrl = sanitizedUrl.hasPrefix("http") ? sanitizedUrl : "https://\(sanitizedUrl)"
+                
+                AsyncImage(url: URL(string: finalUrl)) { phase in
+                    switch phase {
+                    case .empty:
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.2))
+                            .aspectRatio(2/1, contentMode: .fit)
+                            .overlay(
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle())
+                            )
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                    case .failure:
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.2))
+                            .aspectRatio(2/1, contentMode: .fit)
+                            .overlay(
+                                VStack {
+                                    Image(systemName: "photo")
+                                        .font(.system(size: 20))
+                                        .foregroundColor(.gray)
+                                    Text("Unable to load image")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                            )
+                    @unknown default:
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.2))
+                            .aspectRatio(2/1, contentMode: .fit)
+                    }
                 }
                 .cornerRadius(8)
             }
@@ -1026,8 +1106,22 @@ struct SlackMessagesView: View {
         // Create a new timer that runs every 20 seconds
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 20, repeats: true) { _ in
             Task {
+                // Store currently read messages before refresh
+                let readMessageIds = self.viewModel.messages.filter { $0.isRead }.map { $0.id }
+                
                 // Try to fetch the latest messages
-                await viewModel.fetchLatestMessages()
+                await self.viewModel.fetchLatestMessages()
+                
+                // Restore read status
+                await MainActor.run {
+                    // Mark previously read messages as read again
+                    for messageId in readMessageIds {
+                        self.viewModel.markAsRead(messageId: messageId)
+                    }
+                    
+                    // Also mark currently visible messages as read
+                    self.viewModel.markVisibleMessagesAsRead(messagesIds: self.visibleMessageIds)
+                }
             }
         }
     }
@@ -1121,8 +1215,8 @@ struct SlackMessagesView: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
             
-            // Channel selector
-            channelSelector
+            // Replace channel selector with channelHeader that includes the refresh button
+            channelHeader
             
             // Messages list - expanded to fill more space
             if viewModel.isLoading {
@@ -1267,6 +1361,30 @@ struct SlackMessagesView: View {
         }
     }
     
+    // Replace channel selector with channelHeader that includes the refresh button
+    private var channelHeader: some View {
+        HStack {
+            channelSelector
+                .cornerRadius(8)
+             
+            Spacer()
+        
+            Button(action: {
+                refreshMessages()
+            }) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 12 * sizePreference.iconScale))
+                    .foregroundColor(.textSecondary)
+                    .padding(6 * sizePreference.paddingScale)
+                    .background(Color.bgTertiary(for: colorScheme))
+                    .cornerRadius(8)
+            }
+        }
+        .padding(.horizontal, 16 * sizePreference.paddingScale)
+        .padding(.vertical, 6 * sizePreference.paddingScale)
+        .background(Color.bgSecondary(for: colorScheme))
+    }
+    
     // Channel selector menu
     private var channelSelector: some View {
         Menu {
@@ -1304,32 +1422,9 @@ struct SlackMessagesView: View {
             .background(
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color.bgTertiary(for: colorScheme))
-            )
+                )
         }
         .menuStyle(BorderlessButtonMenuStyle())
-    }
-    
-    var channelHeader: some View {
-        HStack {
-            channelSelector
-                .cornerRadius(8)
-                 
-            Spacer()
-        
-            Button(action: {
-                refreshMessages()
-            }) {
-                Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 12 * sizePreference.iconScale))
-                    .foregroundColor(.textSecondary)
-                    .padding(6 * sizePreference.paddingScale)
-                    .background(Color.bgTertiary(for: colorScheme))
-                    .cornerRadius(8)
-            }
-        }
-        .padding(.horizontal, 16 * sizePreference.paddingScale)
-        .padding(.vertical, 6 * sizePreference.paddingScale)
-        .background(Color.bgSecondary(for: colorScheme))
     }
     
     // Message row with improved screen reader support
@@ -1695,10 +1790,26 @@ struct SlackMessagesView: View {
             self.refreshButtonPressed = false
         }
         
+        // Store the IDs of messages that are already marked as read
+        let readMessageIds = viewModel.messages.filter { $0.isRead }.map { $0.id }
+        
         // Perform an actual refresh
         Task {
             await viewModel.fetchLatestMessages()
-            lastRefreshTime = Date()
+            
+            // After fetching, restore read status for messages that were previously read
+            await MainActor.run {
+                // Mark previously read messages as read again
+                for messageId in readMessageIds {
+                    viewModel.markAsRead(messageId: messageId)
+                }
+                
+                // We no longer automatically mark visible messages as read after a refresh
+                // Let them follow the same onAppear rules as other messages
+                // viewModel.markVisibleMessagesAsRead(messagesIds: visibleMessageIds)
+                
+                lastRefreshTime = Date()
+            }
         }
     }
     
@@ -1784,8 +1895,10 @@ struct SlackMessagesView: View {
                         
                         Button(action: {
                             if !threadMessage.isEmpty, let parentId = threadParentId {
-                                viewModel.sendThreadMessage(text: threadMessage, parentId: parentId)
-                                threadMessage = ""
+                                Task {
+                                    await viewModel.sendThreadMessage(text: threadMessage, parentId: parentId)
+                                    threadMessage = ""
+                                }
                             }
                         }) {
                             Image(systemName: "arrow.up.circle.fill")
@@ -1885,8 +1998,18 @@ struct SlackMessagesView: View {
                             // When a message appears, add it to visible messages
                             if !visibleMessageIds.contains(message.id) {
                                 visibleMessageIds.append(message.id)
-                                // Mark this message as read
-                                viewModel.markAsRead(messageId: message.id)
+                                
+                                // Only mark messages as read if they remain visible for a certain time
+                                // or user explicitly interacts with them
+                                if !message.isRead {
+                                    // Use a longer delay (3 seconds) to ensure user has time to notice the message
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                                        // Only mark as read if the message is still visible after the delay
+                                        if visibleMessageIds.contains(message.id) {
+                                            viewModel.markAsRead(messageId: message.id)
+                                        }
+                                    }
+                                }
                             }
                         }
                         .onDisappear {
@@ -1899,9 +2022,12 @@ struct SlackMessagesView: View {
                     
                     // Load all visible message IDs after view appears
                     .onAppear {
-                        // On initial appearance, mark all visible messages as read
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            viewModel.markVisibleMessagesAsRead(messagesIds: visibleMessageIds)
+                        // On initial appearance, we now follow the more deliberate read marking strategy
+                        // and don't immediately mark all messages as read
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                            // We no longer automatically mark all visible messages as read
+                            // User needs to either scroll to see them for the delay period or tap on them
+                            // viewModel.markVisibleMessagesAsRead(messagesIds: visibleMessageIds)
                         }
                     }
                 }

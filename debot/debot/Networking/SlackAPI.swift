@@ -531,9 +531,12 @@ struct SlackAPIMessage: Decodable {
     // Reactions
     let reactions: [SlackAPIReaction]?
     
+    // Attachments
+    let attachments: [SlackAPIAttachment]?
+    
     // Add CodingKeys to handle missing fields gracefully
     enum CodingKeys: String, CodingKey {
-        case type, user, text, ts, thread_ts, reply_count, replies, reactions
+        case type, user, text, ts, thread_ts, reply_count, replies, reactions, attachments
     }
     
     init(from decoder: Decoder) throws {
@@ -550,6 +553,7 @@ struct SlackAPIMessage: Decodable {
         reply_count = try container.decodeIfPresent(Int.self, forKey: .reply_count)
         replies = try container.decodeIfPresent([SlackAPIReply].self, forKey: .replies)
         reactions = try container.decodeIfPresent([SlackAPIReaction].self, forKey: .reactions)
+        attachments = try container.decodeIfPresent([SlackAPIAttachment].self, forKey: .attachments)
     }
     
     // Convert to our app's SlackMessage format
@@ -569,6 +573,22 @@ struct SlackAPIMessage: Decodable {
             }
         }
         
+        // Convert API attachments to app model attachments if present
+        var messageAttachments: [SlackAttachment] = []
+        if let apiAttachments = attachments, !apiAttachments.isEmpty {
+            for (index, attachment) in apiAttachments.enumerated() {
+                let attachmentId = "att_\(ts)_\(index)"
+                
+                messageAttachments.append(SlackAttachment(
+                    id: attachmentId,
+                    title: attachment.title,
+                    text: attachment.text,
+                    imageUrl: attachment.image_url ?? attachment.thumb_url,
+                    color: attachment.color
+                ))
+            }
+        }
+        
         return SlackMessage(
             id: ts,
             userId: user ?? "unknown",
@@ -579,7 +599,7 @@ struct SlackAPIMessage: Decodable {
             text: text,
             timestamp: Date(timeIntervalSince1970: timestamp),
             isRead: isRead,
-            attachments: [],
+            attachments: messageAttachments,
             threadParentId: thread_ts,
             replyCount: reply_count,
             isThreadParent: reply_count != nil && reply_count! > 0,
@@ -599,4 +619,13 @@ struct SlackAPIReaction: Decodable {
     let name: String
     let count: Int
     let users: [String]
+}
+
+// Attachment Model for API
+struct SlackAPIAttachment: Decodable {
+    let title: String?
+    let text: String?
+    let image_url: String?
+    let thumb_url: String?
+    let color: String?
 } 

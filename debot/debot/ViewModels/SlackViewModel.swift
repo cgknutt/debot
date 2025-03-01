@@ -708,7 +708,7 @@ class SlackViewModel: ObservableObject {
     }
     
     // Method to send a thread message
-    func sendThreadMessage(text: String, parentId: String) {
+    func sendThreadMessage(text: String, parentId: String) async {
         // In a real app, this would send the message to the Slack API
         // For now, we'll just add it to our local data
         
