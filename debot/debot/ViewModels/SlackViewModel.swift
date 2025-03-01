@@ -552,15 +552,25 @@ class SlackViewModel: ObservableObject {
         
         // Check if the current user has already reacted with this emoji
         let userHasReacted = message.reactions?.contains(where: { 
-            $0.name == emoji && $0.userIds.contains(self.currentUserId ?? "")
+            $0.name == emoji && $0.userHasReacted(currentUserId: self.currentUserId)
         }) ?? false
         
         // Perform the appropriate action based on whether the user has already reacted
         Task {
             if userHasReacted {
-                // TODO: Implement removeReaction in SlackAPI
-                // For now, we'll just reload messages
-                print("Would remove reaction \(emoji) from message \(messageId)")
+                // Remove the reaction
+                do {
+                    let success = try await SlackAPI.shared.removeReaction(name: emoji, channelId: message.channelId, timestamp: messageId)
+                    if success {
+                        // Reload messages to update the UI
+                        await loadMessages()
+                    } else {
+                        print("Failed to remove reaction")
+                    }
+                } catch {
+                    self.error = error
+                    print("Error removing reaction: \(error.localizedDescription)")
+                }
             } else {
                 // Add the reaction
                 let success = await addReaction(name: emoji, messageId: messageId, channelId: message.channelId)

@@ -136,9 +136,11 @@ public struct SlackReaction: Identifiable, Hashable {
     }
     
     // Computed property to check if the current user has reacted
-    public var userHasReacted: Bool {
-        // This would need to be modified to check against the current user ID
-        return false
+    public func userHasReacted(currentUserId: String?) -> Bool {
+        guard let currentUserId = currentUserId, !currentUserId.isEmpty else {
+            return false
+        }
+        return userIds.contains(currentUserId)
     }
     
     // Initializer

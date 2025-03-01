@@ -268,6 +268,55 @@ class SlackAPI {
         return ts
     }
     
+    // Remove reaction from a message
+    func removeReaction(name: String, channelId: String, timestamp: String) async throws -> Bool {
+        print("\n--- SLACK API: Removing Reaction from Message ---")
+        print("Note: Bot needs 'reactions:write' scope to remove reactions")
+        
+        let urlComponents = URLComponents(string: "https://slack.com/api/reactions.remove")!
+        var request = URLRequest(url: urlComponents.url!)
+        request.httpMethod = "POST"
+        request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(botToken)", forHTTPHeaderField: "Authorization")
+        
+        // Create the request body
+        let bodyObject: [String: Any] = [
+            "channel": channelId,
+            "timestamp": timestamp,
+            "name": name  // emoji name without colons (e.g. "thumbsup")
+        ]
+        
+        request.httpBody = try JSONSerialization.data(withJSONObject: bodyObject)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        // Debug response
+        if let httpResponse = response as? HTTPURLResponse {
+            print("Remove Reaction API Status Code: \(httpResponse.statusCode)")
+            
+            if httpResponse.statusCode != 200 {
+                throw SlackError.httpError(httpResponse.statusCode)
+            }
+        }
+        
+        // Print full response for debugging
+        if let responseStr = String(data: data, encoding: .utf8) {
+            print("Remove Reaction API Response: \(responseStr)")
+        }
+        
+        let jsonObject = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        if let ok = jsonObject?["ok"] as? Bool, ok {
+            print("Successfully removed reaction from message")
+            return true
+        } else if let error = jsonObject?["error"] as? String {
+            print("Failed to remove reaction: \(error)")
+            throw SlackError.apiError(error)
+        } else {
+            print("Unknown response when removing reaction")
+            return false
+        }
+    }
+    
     // Add reaction to a message
     func addReaction(name: String, channelId: String, timestamp: String) async throws -> Bool {
         print("\n--- SLACK API: Adding Reaction to Message ---")

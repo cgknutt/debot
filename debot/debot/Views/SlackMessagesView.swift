@@ -546,6 +546,12 @@ struct SlackMessagesView: View {
         .sheet(isPresented: $showSlackSetup) {
             SlackSetupView(viewModel: viewModel)
         }
+        .sheet(isPresented: $showingReactionPicker) {
+            reactionPickerView
+        }
+        .sheet(isPresented: $showingThreadView) {
+            threadView
+        }
     }
     
     // Messages view with accessibility improvements
@@ -876,8 +882,86 @@ struct SlackMessagesView: View {
                         .foregroundColor(.textSecondary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
+                    
+                    // Display reactions if any
+                    if let reactions = message.reactions, !reactions.isEmpty {
+                        HStack(spacing: 4 * sizePreference.paddingScale) {
+                            ForEach(reactions) { reaction in
+                                HStack(spacing: 2) {
+                                    Text(reaction.emoji)
+                                        .font(.system(size: 12 * sizePreference.fontScale))
+                                    Text("\(reaction.count)")
+                                        .font(.system(size: 10 * sizePreference.fontScale))
+                                        .foregroundColor(.textTertiary)
+                                }
+                                .padding(.horizontal, 6 * sizePreference.paddingScale)
+                                .padding(.vertical, 2 * sizePreference.paddingScale)
+                                .background(
+                                    Capsule()
+                                        .fill(Color.bgTertiary(for: colorScheme).opacity(0.6))
+                                )
+                                .onTapGesture {
+                                    viewModel.toggleReaction(emoji: reaction.name, messageId: message.id)
+                                }
+                            }
+                        }
+                        .padding(.top, 4 * sizePreference.paddingScale)
+                    }
                 }
             }
+            
+            // Action buttons
+            HStack {
+                Spacer()
+                
+                // Add reaction button
+                Button(action: {
+                    showReactionPicker(for: message.id)
+                }) {
+                    Image(systemName: "face.smiling")
+                        .font(.system(size: 12 * sizePreference.iconScale))
+                        .foregroundColor(.textTertiary)
+                }
+                .buttonStyle(Theme.IconButtonStyle(
+                    size: 28 * sizePreference.iconScale,
+                    bgColor: Color.bgTertiary(for: colorScheme).opacity(0.6)
+                ))
+                .improvedSemantics(
+                    label: "Add Reaction",
+                    hint: "Add emoji reaction to this message"
+                )
+                
+                // Reply button (if it's a thread parent or has a thread parent)
+                if message.isThreadParent || message.threadParentId != nil {
+                    Button(action: {
+                        // Show thread view
+                        threadParentId = message.isThreadParent ? message.id : message.threadParentId
+                        withAnimation {
+                            showingThreadView = true
+                        }
+                    }) {
+                        HStack(spacing: 4 * sizePreference.paddingScale) {
+                            Image(systemName: "bubble.left")
+                                .font(.system(size: 12 * sizePreference.iconScale))
+                            
+                            if let replyCount = message.replyCount, replyCount > 0 {
+                                Text("\(replyCount)")
+                                    .font(.system(size: 12 * sizePreference.fontScale))
+                            }
+                        }
+                        .foregroundColor(.textTertiary)
+                    }
+                    .buttonStyle(Theme.IconButtonStyle(
+                        size: 28 * sizePreference.iconScale,
+                        bgColor: Color.bgTertiary(for: colorScheme).opacity(0.6)
+                    ))
+                    .improvedSemantics(
+                        label: "View Thread",
+                        hint: "View message thread with replies"
+                    )
+                }
+            }
+            .padding(.top, 4 * sizePreference.paddingScale)
         }
         .padding(12 * sizePreference.paddingScale)
         .background(Color.bgSecondary(for: colorScheme))
@@ -901,6 +985,14 @@ struct SlackMessagesView: View {
             }
             
             // Future functionality for message details
+        }
+    }
+    
+    // Show reaction picker for a message
+    private func showReactionPicker(for messageId: String) {
+        reactionTargetMessage = messageId
+        withAnimation {
+            showingReactionPicker = true
         }
     }
     
@@ -1150,6 +1242,113 @@ struct SlackMessagesView: View {
             }
             messageText = ""
         }
+    }
+    
+    // Reaction picker view
+    private var reactionPickerView: some View {
+        NavigationView {
+            VStack {
+                Text("Choose a reaction")
+                    .font(.headline)
+                    .padding()
+                
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 16) {
+                    ForEach(commonEmojis, id: \.self) { emoji in
+                        Button(action: {
+                            if let messageId = reactionTargetMessage {
+                                viewModel.toggleReaction(emoji: emoji.name, messageId: messageId)
+                                showingReactionPicker = false
+                            }
+                        }) {
+                            VStack {
+                                Text(emoji.emoji)
+                                    .font(.system(size: 24))
+                                Text(emoji.name)
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.textSecondary)
+                            }
+                            .padding()
+                            .background(Color.bgSecondary(for: colorScheme))
+                            .cornerRadius(8)
+                        }
+                    }
+                }
+                .padding()
+                
+                Spacer()
+            }
+            .navigationBarTitle("Add Reaction", displayMode: .inline)
+            .navigationBarItems(trailing: Button("Cancel") {
+                showingReactionPicker = false
+            })
+        }
+    }
+    
+    // Thread view
+    private var threadView: some View {
+        NavigationView {
+            VStack {
+                if let parentId = threadParentId {
+                    let threadMessages = viewModel.getThreadMessages(parentId: parentId)
+                    
+                    ScrollView {
+                        LazyVStack(spacing: 8) {
+                            ForEach(threadMessages) { message in
+                                messageRow(message: message)
+                                    .padding(.horizontal)
+                            }
+                        }
+                        .padding(.vertical)
+                    }
+                    
+                    // Message input for thread
+                    HStack {
+                        TextField("Reply in thread...", text: $threadMessage)
+                            .padding()
+                            .background(Color.bgTertiary(for: colorScheme))
+                            .cornerRadius(20)
+                        
+                        Button(action: {
+                            if !threadMessage.isEmpty, let parentId = threadParentId {
+                                viewModel.sendThreadMessage(text: threadMessage, parentId: parentId)
+                                threadMessage = ""
+                            }
+                        }) {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .font(.system(size: 24))
+                                .foregroundColor(threadMessage.isEmpty ? .textTertiary : .accentPrimary)
+                        }
+                        .disabled(threadMessage.isEmpty)
+                    }
+                    .padding()
+                } else {
+                    Text("No thread selected")
+                        .foregroundColor(.textSecondary)
+                }
+            }
+            .navigationBarTitle("Thread", displayMode: .inline)
+            .navigationBarItems(trailing: Button("Close") {
+                showingThreadView = false
+            })
+        }
+    }
+    
+    // Common emoji reactions
+    private var commonEmojis: [SlackReaction] {
+        return [
+            SlackReaction(name: "thumbsup", count: 0, userIds: []),
+            SlackReaction(name: "thumbsdown", count: 0, userIds: []),
+            SlackReaction(name: "heart", count: 0, userIds: []),
+            SlackReaction(name: "joy", count: 0, userIds: []),
+            SlackReaction(name: "clap", count: 0, userIds: []),
+            SlackReaction(name: "fire", count: 0, userIds: []),
+            SlackReaction(name: "eyes", count: 0, userIds: []),
+            SlackReaction(name: "thinking_face", count: 0, userIds: []),
+            SlackReaction(name: "pray", count: 0, userIds: []),
+            SlackReaction(name: "100", count: 0, userIds: []),
+            SlackReaction(name: "rocket", count: 0, userIds: []),
+            SlackReaction(name: "raised_hands", count: 0, userIds: [])
+        ]
     }
 }
 
