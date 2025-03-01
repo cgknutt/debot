@@ -471,11 +471,11 @@ struct MessageRow: View {
                     // Default avatar
                     ZStack {
                         Circle()
-                            .fill(themeColors.debotOrange.opacity(0.2))
+                            .fill(Theme.Colors.debotOrange.opacity(0.2))
                         
                         Text(String(message.userName.prefix(1).uppercased()))
                             .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(themeColors.debotOrange)
+                            .foregroundColor(Theme.Colors.debotOrange)
                     }
                     .frame(width: 36, height: 36)
                 }
@@ -490,7 +490,7 @@ struct MessageRow: View {
                     HStack(spacing: 4) {
                         Text("#\(message.channelName)")
                             .font(.system(size: 13))
-                            .foregroundColor(themeColors.debotOrange)
+                            .foregroundColor(Theme.Colors.debotOrange)
                         
                         Text("•")
                             .font(.system(size: 13))
@@ -574,11 +574,11 @@ struct MessageRow: View {
                             .background(
                                 Capsule()
                                     .fill(reaction.userHasReacted(currentUserId: viewModel.currentUserId) ? 
-                                        themeColors.debotOrange.opacity(0.15) : 
+                                        Theme.Colors.debotOrange.opacity(0.15) : 
                                         Color.bgSecondary(for: colorScheme))
                             )
                             .foregroundColor(reaction.userHasReacted(currentUserId: viewModel.currentUserId) ? 
-                                themeColors.debotOrange : 
+                                Theme.Colors.debotOrange : 
                                 Color.textPrimary(for: colorScheme))
                         }
                     }
@@ -639,8 +639,8 @@ struct SlackAttachmentView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 8)
                 .stroke(
-                    attachment.color?.isEmpty == false ? 
-                        Color(uiHex: attachment.color!) : 
+                    attachment.color != nil ? 
+                        attachment.color! : 
                         Color.dividerColor(for: colorScheme),
                     lineWidth: 2
                 )
