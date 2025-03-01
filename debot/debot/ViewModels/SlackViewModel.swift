@@ -1056,4 +1056,31 @@ class SlackViewModel: ObservableObject {
         }
         return [:]
     }
+    
+    // Get a username for a user ID (used for formatting mentions)
+    func getUsernameForId(_ userId: String) -> String? {
+        // Check our user cache first
+        if let user = userCache[userId] {
+            return user.profile.display_name.isEmpty ? user.name : user.profile.display_name
+        }
+        
+        // For mock data, provide some mappings
+        if useMockData {
+            let mockUsers = [
+                "U123": "john.doe",
+                "U456": "jane.smith",
+                "U789": "alex.johnson",
+                "U111": "sarah.wilson",
+                "U222": "bot.user",
+                "U05SGQX1F52": "deter.brown",
+                "U08FL5DNEUR": "debot"
+            ]
+            
+            return mockUsers[userId] ?? "user"
+        }
+        
+        // For real API, we should make an API call to get user info
+        // But for now, just return a placeholder
+        return "user"
+    }
 } 

@@ -441,7 +441,32 @@ class ErrorManager {
     }
 }
 
-// Message row component
+// First, add the String extension to convert emoji names to actual emojis
+extension String {
+    func emojiFromName() -> String {
+        // Simple mapping of common reactions to emoji
+        let emojiMap = [
+            "thumbsup": "👍",
+            "thumbsdown": "👎",
+            "heart": "❤️",
+            "joy": "😂",
+            "open_mouth": "😮",
+            "raised_hands": "🙌",
+            "clap": "👏",
+            "fire": "🔥",
+            "tada": "🎉",
+            "pray": "🙏",
+            "eyes": "👀",
+            "100": "💯",
+            "+1": "👍",
+            "-1": "👎"
+        ]
+        
+        return emojiMap[self] ?? ":\(self):"
+    }
+}
+
+// Now update the MessageRow component to include tap gesture for marking messages as read
 struct MessageRow: View {
     let message: SlackMessage
     let viewModel: SlackViewModel
@@ -569,40 +594,42 @@ struct MessageRow: View {
                 }
                 
                 // Message text
-                Text(message.text)
-                    .font(.system(size: 15))
-                    .foregroundColor(Color.textPrimary(for: colorScheme))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .lineLimit(nil)
-                    .multilineTextAlignment(.leading)
+                if isSystemMessage(message.text) {
+                    formattedSystemMessageView(message.text)
+                } else if containsMediaContent(message.text) {
+                    mediaContentView(message.text)
+                } else {
+                    formattedMessageView(message.text)
+                }
                 
                 // Attachments if any
                 if !message.attachments.isEmpty {
-                    ForEach(message.attachments) { attachment in
-                        SlackAttachmentView(attachment: attachment)
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(message.attachments, id: \.id) { attachment in
+                            SlackAttachmentView(attachment: attachment)
+                        }
                     }
                 }
                 
                 // Reactions if any
                 if let reactions = message.reactions, !reactions.isEmpty {
                     HStack(spacing: 8) {
-                        ForEach(reactions) { reaction in
+                        ForEach(reactions, id: \.name) { reaction in
                             Button(action: {
                                 viewModel.toggleReaction(emoji: reaction.name, messageId: message.id)
                             }) {
                                 HStack(spacing: 4) {
-                                    Text(":\(reaction.name):")
-                                        .font(.system(size: 14))
+                                    Text(reaction.name.emojiFromName())
+                                        .font(.system(size: 12))
+                                    
                                     Text("\(reaction.count)")
-                                        .font(.system(size: 12, weight: .medium))
+                                        .font(.system(size: 11, weight: .medium))
                                 }
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
                                 .background(
-                                    Capsule()
-                                        .fill(reaction.userHasReacted(currentUserId: viewModel.currentUserId) ? 
-                                            Theme.Colors.debotOrange.opacity(0.15) : 
-                                            Color.bgSecondary(for: colorScheme))
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color.bgSecondary(for: colorScheme))
                                 )
                                 .foregroundColor(reaction.userHasReacted(currentUserId: viewModel.currentUserId) ? 
                                     Theme.Colors.debotOrange : 
@@ -623,6 +650,186 @@ struct MessageRow: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.dividerColor(for: colorScheme), lineWidth: 0.5)
         )
+        // Add a tap gesture to mark messages as read
+        .onTapGesture {
+            if !message.isRead {
+                viewModel.markAsRead(messageId: message.id)
+            }
+        }
+        .contentShape(Rectangle()) // Make the entire area tappable
+    }
+    
+    // Check if a message is a system message
+    private func isSystemMessage(_ text: String) -> Bool {
+        let systemPatterns = [
+            "has joined the channel",
+            "has left the channel",
+            "added to the channel",
+            "added an integration",
+            "pinned a message",
+            "set the channel topic",
+            "set the channel description"
+        ]
+        
+        return systemPatterns.contains { text.contains($0) }
+    }
+    
+    // Check if a message contains media content (like GIFs, images, etc.)
+    private func containsMediaContent(_ text: String) -> Bool {
+        // Detect URLs for images or GIFs
+        let mediaPatterns = [
+            "giphy.com",
+            ".gif",
+            ".jpg",
+            ".jpeg",
+            ".png",
+            "https://media",
+            "http://media"
+        ]
+        
+        // Also detect if text starts with < and contains http and ends with >
+        // This is the format Slack uses for "hidden" URLs
+        let isWrappedURL = text.hasPrefix("<") && 
+                          text.contains("http") && 
+                          text.hasSuffix(">")
+        
+        // Also detect if text is unusually long URL-like content
+        let isLongURL = text.count > 100 && 
+                       (text.contains("http") || text.contains("www."))
+        
+        return mediaPatterns.contains { text.contains($0) } || isLongURL || isWrappedURL
+    }
+    
+    // Format system messages to look nicer
+    private func formattedSystemMessageView(_ text: String) -> some View {
+        let formattedText = formatUserMentions(text)
+        
+        return Text(formattedText)
+            .font(.system(size: 14, weight: .medium))
+            .italic()
+            .foregroundColor(Color.textSecondary(for: colorScheme))
+            .fixedSize(horizontal: false, vertical: true)
+            .multilineTextAlignment(.leading)
+    }
+    
+    // Format regular messages with user mentions
+    private func formattedMessageView(_ text: String) -> some View {
+        let formattedText = formatUserMentions(text)
+        
+        return Text(formattedText)
+            .font(.system(size: 15))
+            .foregroundColor(Color.textPrimary(for: colorScheme))
+            .fixedSize(horizontal: false, vertical: true)
+            .multilineTextAlignment(.leading)
+    }
+    
+    // Handle media content display
+    private func mediaContentView(_ text: String) -> some View {
+        // First, unwrap URLs if they're in the <url> format
+        var processedText = text
+        if processedText.hasPrefix("<") && processedText.hasSuffix(">") {
+            processedText = String(processedText.dropFirst().dropLast())
+            
+            // If it contains a pipe, it's in format <url|text>, extract just the URL
+            if let pipeIndex = processedText.firstIndex(of: "|") {
+                processedText = String(processedText.prefix(upTo: pipeIndex))
+            }
+        }
+        
+        // Extract URL if possible
+        let urlRegex = try! NSRegularExpression(pattern: "(https?://[^\\s]+)", options: [])
+        let nsString = processedText as NSString
+        let matches = urlRegex.matches(in: processedText, options: [], range: NSRange(location: 0, length: nsString.length))
+        
+        if let match = matches.first {
+            let url = nsString.substring(with: match.range)
+            
+            return VStack(alignment: .leading, spacing: 8) {
+                if processedText != url {
+                    // Show text if there's additional content besides the URL
+                    Text(formatUserMentions(processedText.replacingOccurrences(of: url, with: "")))
+                        .font(.system(size: 15))
+                        .foregroundColor(Color.textPrimary(for: colorScheme))
+                }
+                
+                // For GIFs or media content
+                if url.contains(".gif") || url.contains("giphy.com") {
+                    Text("GIF")
+                        .font(.system(size: 13, weight: .medium))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.blue.opacity(0.1))
+                        .foregroundColor(.blue)
+                        .cornerRadius(4)
+                    
+                    AsyncImage(url: URL(string: url)) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .cornerRadius(8)
+                    } placeholder: {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(height: 150)
+                            .overlay(
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle())
+                            )
+                    }
+                    .frame(maxHeight: 200)
+                } else if url.contains(".jpg") || url.contains(".jpeg") || url.contains(".png") {
+                    AsyncImage(url: URL(string: url)) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .cornerRadius(8)
+                    } placeholder: {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(height: 150)
+                            .overlay(
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle())
+                            )
+                    }
+                    .frame(maxHeight: 200)
+                } else {
+                    // For other URLs, display clickable link
+                    Link(destination: URL(string: url) ?? URL(string: "https://example.com")!) {
+                        Text(url)
+                            .font(.system(size: 14))
+                            .foregroundColor(.blue)
+                            .underline()
+                            .lineLimit(2)
+                    }
+                }
+            }
+        } else {
+            // Fallback to regular text view if URL extraction fails
+            return formattedMessageView(processedText)
+        }
+    }
+    
+    // Format user mentions in text (like <@U123456> to @Username)
+    private func formatUserMentions(_ text: String) -> String {
+        var formattedText = text
+        
+        // Match user mentions like <@U123456>
+        let regex = try! NSRegularExpression(pattern: "<@(U[A-Z0-9]+)>", options: [])
+        let nsString = text as NSString
+        let matches = regex.matches(in: text, options: [], range: NSRange(location: 0, length: nsString.length))
+        
+        // Process mentions in reverse order to avoid changing the string length
+        for match in matches.reversed() {
+            let userId = nsString.substring(with: match.range(at: 1))
+            let username = viewModel.getUsernameForId(userId) ?? "user"
+            formattedText = formattedText.replacingOccurrences(
+                of: "<@\(userId)>",
+                with: "@\(username)"
+            )
+        }
+        
+        return formattedText
     }
 }
 
@@ -915,55 +1122,7 @@ struct SlackMessagesView: View {
             }
             
             // Channel selector
-            HStack(spacing: 12 * sizePreference.paddingScale) {
-                Menu {
-                    Button("All Channels", action: {
-                        selectedChannelId = nil
-                    })
-                    
-                    ForEach(viewModel.channels) { channel in
-                        Button(action: {
-                            selectedChannelId = channel.id
-                        }) {
-                            Text(channel.name)
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 5 * sizePreference.paddingScale) {
-                        Image(systemName: "number")
-                            .font(.system(size: 12 * sizePreference.iconScale, weight: .medium))
-                            .foregroundColor(.accentPrimary)
-                        
-                        Text(selectedChannelName)
-                            .font(.system(size: 13 * sizePreference.fontScale, weight: .medium))
-                            .lineLimit(1)
-                        
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 9 * sizePreference.iconScale, weight: .semibold))
-                    }
-                    .foregroundColor(.textSecondary)
-                    .padding(.horizontal, 12 * sizePreference.paddingScale)
-                    .padding(.vertical, 6 * sizePreference.paddingScale)
-                    .background(Color.bgTertiary(for: colorScheme))
-                    .cornerRadius(8)
-                }
-                
-                Spacer()
-            
-                Button(action: {
-                    refreshMessages()
-                }) {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 12 * sizePreference.iconScale))
-                        .foregroundColor(.textSecondary)
-                        .padding(6 * sizePreference.paddingScale)
-                        .background(Color.bgTertiary(for: colorScheme))
-                        .cornerRadius(8)
-                }
-            }
-            .padding(.horizontal, 16 * sizePreference.paddingScale)
-            .padding(.vertical, 6 * sizePreference.paddingScale)
-            .background(Color.bgSecondary(for: colorScheme))
+            channelSelector
             
             // Messages list - expanded to fill more space
             if viewModel.isLoading {
@@ -1106,6 +1265,71 @@ struct SlackMessagesView: View {
                 .padding(.vertical, 16 * sizePreference.paddingScale)
             }
         }
+    }
+    
+    // Channel selector menu
+    private var channelSelector: some View {
+        Menu {
+            Button(action: {
+                selectedChannelId = nil
+                searchText = ""
+            }) {
+                Label("All Channels", systemImage: "number")
+            }
+            
+            Divider()
+            
+            ForEach(viewModel.channels) { channel in
+                Button(action: {
+                    selectedChannelId = channel.id
+                    searchText = ""
+                }) {
+                    Text(channel.name)
+                }
+            }
+        } label: {
+            HStack {
+                Image(systemName: "number")
+                    .foregroundColor(Theme.Colors.debotOrange)
+                
+                Text(selectedChannelName)
+                    .foregroundColor(Color.textPrimary(for: colorScheme))
+                
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 14))
+                    .foregroundColor(Color.textSecondary(for: colorScheme))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.bgTertiary(for: colorScheme))
+            )
+        }
+        .menuStyle(BorderlessButtonMenuStyle())
+    }
+    
+    var channelHeader: some View {
+        HStack {
+            channelSelector
+                .cornerRadius(8)
+                 
+            Spacer()
+        
+            Button(action: {
+                refreshMessages()
+            }) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 12 * sizePreference.iconScale))
+                    .foregroundColor(.textSecondary)
+                    .padding(6 * sizePreference.paddingScale)
+                    .background(Color.bgTertiary(for: colorScheme))
+                    .cornerRadius(8)
+            }
+        }
+        .padding(.horizontal, 16 * sizePreference.paddingScale)
+        .padding(.vertical, 6 * sizePreference.paddingScale)
+        .background(Color.bgSecondary(for: colorScheme))
     }
     
     // Message row with improved screen reader support
