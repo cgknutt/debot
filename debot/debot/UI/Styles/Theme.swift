@@ -9,6 +9,11 @@ enum Theme {
         static let accent = Color("Accent", bundle: .main)
         static let background = Color("Background", bundle: .main)
         static let text = Color("Text", bundle: .main)
+        
+        // Brand colors
+        static let debotOrange = Color(UIColor(red: 0.9, green: 0.5, blue: 0.1, alpha: 1.0))
+        static let debotGold = Color(UIColor(red: 0.85, green: 0.65, blue: 0.3, alpha: 1.0))
+        static let debotBrown = Color(UIColor(red: 0.6, green: 0.4, blue: 0.2, alpha: 1.0))
     }
     
     // MARK: - Typography

@@ -57,9 +57,9 @@ extension Color {
     static let bgTertiary = Color(UIColor.tertiarySystemBackground)
     
     // Accent colors
-    static let accentPrimary = Color.debotOrange // Use our brand color
-    static let accentSecondary = Color.debotOrange.opacity(0.85)
-    static let accentTertiary = Color.debotOrange.opacity(0.7)
+    static let accentPrimary = Theme.Colors.debotOrange // Use our brand color from Theme
+    static let accentSecondary = Theme.Colors.debotOrange.opacity(0.85)
+    static let accentTertiary = Theme.Colors.debotOrange.opacity(0.7)
     
     // Text colors - with dark/light variants
     static func textPrimary(for scheme: ColorScheme) -> Color {
@@ -488,6 +488,7 @@ struct SlackMessagesView: View {
     var showingFlights: Bool = false
     
     @State private var showSlackSetup = false // Added state for setup sheet
+    @State private var isPressed = false // For button animation
     
     init(viewModel: SlackViewModel, showingFlights: Bool = false) {
         self._viewModel = ObservedObject(wrappedValue: viewModel)
@@ -571,7 +572,13 @@ struct SlackMessagesView: View {
                     Image(systemName: isSearchActive ? "xmark.circle.fill" : "magnifyingglass")
                         .font(.system(size: 16 * sizePreference.iconScale))
                         .foregroundColor(.accentPrimary)
+                        .padding(8 * sizePreference.paddingScale)
+                        .background(
+                            Circle()
+                                .fill(Color.bgTertiary.opacity(0.5))
+                        )
                 }
+                .buttonStyle(PlainButtonStyle())
                 .improvedSemantics(
                     label: isSearchActive ? "Clear Search" : "Search Messages",
                     hint: isSearchActive ? "Clear search query" : "Search for messages"
@@ -584,8 +591,24 @@ struct SlackMessagesView: View {
                     Image(systemName: "gearshape")
                         .font(.system(size: 16 * sizePreference.iconScale))
                         .foregroundColor(.accentPrimary)
-                        .padding(.leading, 8 * sizePreference.paddingScale)
+                        .padding(8 * sizePreference.paddingScale)
+                        .background(
+                            Circle()
+                                .fill(Color.bgTertiary.opacity(0.5))
+                        )
+                        .padding(.leading, 4 * sizePreference.paddingScale)
                 }
+                .buttonStyle(PlainButtonStyle())
+                .scaleEffect(isPressed ? 0.92 : 1.0)
+                .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isPressed)
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { _ in isPressed = true }
+                        .onEnded { _ in 
+                            isPressed = false
+                            showSlackSetup = true
+                        }
+                )
                 .improvedSemantics(
                     label: "Slack Setup",
                     hint: "Configure Slack settings"

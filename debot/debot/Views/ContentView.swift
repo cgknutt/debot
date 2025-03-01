@@ -505,6 +505,7 @@ struct SlackSetupView: View {
     @State private var isTokenSaved = false
     @Environment(\.presentationMode) var presentationMode
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.themeColors) private var colors // Add theme colors
     
     var body: some View {
         NavigationView {
@@ -520,6 +521,8 @@ struct SlackSetupView: View {
                         saveToken()
                     }) {
                         Text("Save Token")
+                            .foregroundColor(Theme.Colors.debotOrange)
+                            .fontWeight(.medium)
                     }
                     .disabled(apiToken.isEmpty || !apiToken.hasPrefix("xoxb-"))
                     
@@ -545,6 +548,8 @@ struct SlackSetupView: View {
                         }
                     }) {
                         Text("Test Connection")
+                            .foregroundColor(Theme.Colors.debotOrange)
+                            .fontWeight(.medium)
                     }
                     .disabled(isTestingConnection)
                     
@@ -607,9 +612,18 @@ struct SlackSetupView: View {
                 }
             }
             .navigationTitle("Slack Setup")
-            .navigationBarItems(trailing: Button("Close") {
-                presentationMode.wrappedValue.dismiss()
-            })
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        presentationMode.wrappedValue.dismiss()
+                    }) {
+                        Text("Done")
+                            .foregroundColor(Theme.Colors.debotOrange)
+                            .fontWeight(.medium)
+                    }
+                }
+            }
         }
         .onAppear {
             // Try to load existing token if available
