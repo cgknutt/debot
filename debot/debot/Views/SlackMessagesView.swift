@@ -570,15 +570,14 @@ struct SlackMessagesView: View {
                     }
                 }) {
                     Image(systemName: isSearchActive ? "xmark.circle.fill" : "magnifyingglass")
-                        .font(.system(size: 16 * sizePreference.iconScale))
-                        .foregroundColor(.accentPrimary)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
                         .padding(8 * sizePreference.paddingScale)
-                        .background(
-                            Circle()
-                                .fill(Color.bgTertiary.opacity(0.5))
-                        )
                 }
-                .buttonStyle(PlainButtonStyle())
+                .buttonStyle(Theme.IconButtonStyle(
+                    size: 44 * sizePreference.iconScale,
+                    bgColor: Theme.Colors.debotOrange
+                ))
                 .improvedSemantics(
                     label: isSearchActive ? "Clear Search" : "Search Messages",
                     hint: isSearchActive ? "Clear search query" : "Search for messages"
@@ -589,26 +588,14 @@ struct SlackMessagesView: View {
                     showSlackSetup = true
                 }) {
                     Image(systemName: "gearshape")
-                        .font(.system(size: 16 * sizePreference.iconScale))
-                        .foregroundColor(.accentPrimary)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
                         .padding(8 * sizePreference.paddingScale)
-                        .background(
-                            Circle()
-                                .fill(Color.bgTertiary.opacity(0.5))
-                        )
-                        .padding(.leading, 4 * sizePreference.paddingScale)
                 }
-                .buttonStyle(PlainButtonStyle())
-                .scaleEffect(isPressed ? 0.92 : 1.0)
-                .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isPressed)
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { _ in isPressed = true }
-                        .onEnded { _ in 
-                            isPressed = false
-                            showSlackSetup = true
-                        }
-                )
+                .buttonStyle(Theme.IconButtonStyle(
+                    size: 44 * sizePreference.iconScale,
+                    bgColor: Theme.Colors.debotGold
+                ))
                 .improvedSemantics(
                     label: "Slack Setup",
                     hint: "Configure Slack settings"
