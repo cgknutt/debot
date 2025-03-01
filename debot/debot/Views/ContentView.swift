@@ -108,14 +108,27 @@ struct ContentView: View {
                         VStack(spacing: 4) {
                             Image(systemName: "airplane")
                                 .font(.system(size: 20))
-                                .foregroundColor(selectedTab == 0 ? colors.accent : colors.secondaryText)
+                                .foregroundColor(selectedTab == 0 ? Theme.Colors.debotOrange : colors.secondaryText)
+                                .scaleEffect(selectedTab == 0 ? 1.1 : 1.0)
+                                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedTab)
+                            
                             Text("Flights")
                                 .font(.titanOne(size: 12))
-                                .foregroundColor(selectedTab == 0 ? colors.accent : colors.secondaryText)
+                                .foregroundColor(selectedTab == 0 ? Theme.Colors.debotOrange : colors.secondaryText)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-                        .background(selectedTab == 0 ? colors.accent.opacity(0.1) : Color.clear)
+                        .background(
+                            ZStack {
+                                if selectedTab == 0 {
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Theme.Colors.debotOrange.opacity(0.15))
+                                        .padding(.horizontal, 12)
+                                        .transition(.scale.combined(with: .opacity))
+                                }
+                            }
+                            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedTab)
+                        )
                     }
                     
                     // Slack button
@@ -137,7 +150,9 @@ struct ContentView: View {
                         VStack(spacing: 4) {
                             Image(systemName: "message.fill")
                                 .font(.system(size: 20))
-                                .foregroundColor(selectedTab == 1 ? colors.accent : colors.secondaryText)
+                                .foregroundColor(selectedTab == 1 ? Theme.Colors.debotOrange : colors.secondaryText)
+                                .scaleEffect(selectedTab == 1 ? 1.1 : 1.0)
+                                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedTab)
                             
                             HStack(spacing: 2) {
                                 Text("Slack")
@@ -149,16 +164,26 @@ struct ContentView: View {
                                         .font(.titanOne(size: 10))
                                         .padding(.horizontal, 4)
                                         .padding(.vertical, 1)
-                                        .background(colors.accent)
+                                        .background(Theme.Colors.debotOrange)
                                         .foregroundColor(Color.white)
                                         .clipShape(Capsule())
                                 }
                             }
-                            .foregroundColor(selectedTab == 1 ? colors.accent : colors.secondaryText)
+                            .foregroundColor(selectedTab == 1 ? Theme.Colors.debotOrange : colors.secondaryText)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-                        .background(selectedTab == 1 ? colors.accent.opacity(0.1) : Color.clear)
+                        .background(
+                            ZStack {
+                                if selectedTab == 1 {
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Theme.Colors.debotOrange.opacity(0.15))
+                                        .padding(.horizontal, 12)
+                                        .transition(.scale.combined(with: .opacity))
+                                }
+                            }
+                            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedTab)
+                        )
                     }
                 }
                 .padding(.bottom, safeAreaInsets.bottom > 0 ? safeAreaInsets.bottom : 16)
@@ -510,21 +535,23 @@ struct SlackSetupView: View {
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("Slack API Configuration")) {
+                Section(header: Text("Slack API Configuration").headerStyle()) {
                     TextField("Slack Bot Token (xoxb-...)", text: $apiToken)
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
                         .font(.system(.body, design: .monospaced))
                         .foregroundColor(colorScheme == .dark ? .white : .primary)
+                        .inputFieldStyle()
                     
                     Button(action: {
                         saveToken()
                     }) {
                         Text("Save Token")
-                            .foregroundColor(Theme.Colors.debotOrange)
-                            .fontWeight(.medium)
+                            .frame(maxWidth: .infinity)
                     }
+                    .buttonStyle(Theme.PrimaryButtonStyle())
                     .disabled(apiToken.isEmpty || !apiToken.hasPrefix("xoxb-"))
+                    .padding(.vertical, 8)
                     
                     if isTokenSaved {
                         Text("Token saved successfully!")
@@ -548,10 +575,11 @@ struct SlackSetupView: View {
                         }
                     }) {
                         Text("Test Connection")
-                            .foregroundColor(Theme.Colors.debotOrange)
-                            .fontWeight(.medium)
+                            .frame(maxWidth: .infinity)
                     }
+                    .buttonStyle(Theme.SecondaryButtonStyle())
                     .disabled(isTestingConnection)
+                    .padding(.vertical, 8)
                     
                     if isTestingConnection {
                         ProgressView()
@@ -566,9 +594,11 @@ struct SlackSetupView: View {
                             .padding(.vertical, 8)
                     }
                 }
+                .listRowBackground(Color.white.opacity(0.05))
                 
-                Section(header: Text("Mock Data")) {
+                Section(header: Text("Mock Data").headerStyle()) {
                     Toggle("Use Mock Data", isOn: $viewModel.useMockData)
+                        .toggleStyle(SwitchToggleStyle(tint: Theme.Colors.debotOrange))
                         .onChange(of: viewModel.useMockData) { oldValue, newValue in
                             Task {
                                 await viewModel.loadMessages()
@@ -582,8 +612,9 @@ struct SlackSetupView: View {
                             .padding(.vertical, 4)
                     }
                 }
+                .listRowBackground(Color.white.opacity(0.05))
                 
-                Section(header: Text("Help")) {
+                Section(header: Text("Help").headerStyle()) {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("To use Slack integration:")
                             .font(.cooperSmall)
