@@ -452,133 +452,162 @@ struct MessageRow: View {
     @Environment(\.themeColors) var themeColors
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Message header
-            HStack(alignment: .center, spacing: 8) {
-                // User avatar (placeholder or real)
-                if let avatarUrl = message.userAvatar, !avatarUrl.isEmpty {
-                    AsyncImage(url: URL(string: avatarUrl)) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Color.gray.opacity(0.2)
-                    }
-                    .frame(width: 36, height: 36)
-                    .clipShape(Circle())
-                } else {
-                    // Default avatar
-                    ZStack {
-                        Circle()
-                            .fill(Theme.Colors.debotOrange.opacity(0.2))
-                        
-                        Text(String(message.userName.prefix(1).uppercased()))
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(Theme.Colors.debotOrange)
-                    }
-                    .frame(width: 36, height: 36)
-                }
-                
-                VStack(alignment: .leading, spacing: 1) {
-                    // Username
-                    Text(message.userName)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(Color.textPrimary(for: colorScheme))
-                    
-                    // Channel and time
-                    HStack(spacing: 4) {
-                        Text("#\(message.channelName)")
-                            .font(.system(size: 13))
-                            .foregroundColor(Theme.Colors.debotOrange)
-                        
-                        Text("•")
-                            .font(.system(size: 13))
-                            .foregroundColor(Color.textSecondary(for: colorScheme))
-                        
-                        Text(message.timestamp.timeAgoDisplay())
-                            .font(.system(size: 13))
-                            .foregroundColor(Color.textSecondary(for: colorScheme))
-                    }
-                }
-                
+        HStack(alignment: .top, spacing: 0) {
+            // Unread indicator
+            if !message.isRead {
+                Circle()
+                    .fill(Theme.Colors.debotOrange)
+                    .frame(width: 8, height: 8)
+                    .padding(.top, 15)
+                    .padding(.trailing, 8)
+                    .accessibilityLabel("Unread message")
+            } else {
+                // Spacer to maintain layout when no indicator
                 Spacer()
-                
-                // Message actions
-                HStack(spacing: 12) {
-                    // Reply button for thread parent messages
-                    if message.isThreadParent || message.replyCount ?? 0 > 0 {
-                        Button(action: showThreadView) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "bubble.left")
-                                    .font(.system(size: 12))
-                                
-                                if let replyCount = message.replyCount, replyCount > 0 {
-                                    Text("\(replyCount)")
-                                        .font(.system(size: 12))
-                                }
+                    .frame(width: 16)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                // Message header
+                HStack(alignment: .center, spacing: 8) {
+                    // User avatar (placeholder or real)
+                    if let avatarUrl = message.userAvatar, !avatarUrl.isEmpty {
+                        AsyncImage(url: URL(string: avatarUrl)) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Color.gray.opacity(0.2)
+                        }
+                        .frame(width: 36, height: 36)
+                        .clipShape(Circle())
+                    } else {
+                        // Default avatar
+                        ZStack {
+                            Circle()
+                                .fill(Theme.Colors.debotOrange.opacity(0.2))
+                            
+                            Text(String(message.userName.prefix(1).uppercased()))
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(Theme.Colors.debotOrange)
+                        }
+                        .frame(width: 36, height: 36)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 1) {
+                        // Username with unread indicator
+                        HStack(spacing: 4) {
+                            Text(message.userName)
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(Color.textPrimary(for: colorScheme))
+                            
+                            // Additional unread text indicator for better visibility
+                            if !message.isRead {
+                                Text("New")
+                                    .font(.system(size: 11, weight: .medium))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Theme.Colors.debotOrange)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(10)
                             }
-                            .foregroundColor(Color.textSecondary(for: colorScheme))
-                            .padding(6)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(Color.bgSecondary(for: colorScheme))
-                            )
+                        }
+                        
+                        // Channel and time
+                        HStack(spacing: 4) {
+                            Text("#\(message.channelName)")
+                                .font(.system(size: 13))
+                                .foregroundColor(Theme.Colors.debotOrange)
+                            
+                            Text("•")
+                                .font(.system(size: 13))
+                                .foregroundColor(Color.textSecondary(for: colorScheme))
+                            
+                            Text(message.timestamp.timeAgoDisplay())
+                                .font(.system(size: 13))
+                                .foregroundColor(Color.textSecondary(for: colorScheme))
                         }
                     }
                     
-                    // Reaction button
-                    Button(action: showReactionPicker) {
-                        Image(systemName: "face.smiling")
-                            .font(.system(size: 12))
-                            .foregroundColor(Color.textSecondary(for: colorScheme))
-                            .padding(6)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(Color.bgSecondary(for: colorScheme))
-                            )
+                    Spacer()
+                    
+                    // Message actions
+                    HStack(spacing: 12) {
+                        // Reply button for thread parent messages
+                        if message.isThreadParent || message.replyCount ?? 0 > 0 {
+                            Button(action: showThreadView) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "bubble.left")
+                                        .font(.system(size: 12))
+                                    
+                                    if let replyCount = message.replyCount, replyCount > 0 {
+                                        Text("\(replyCount)")
+                                            .font(.system(size: 12))
+                                    }
+                                }
+                                .foregroundColor(Color.textSecondary(for: colorScheme))
+                                .padding(6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(Color.bgSecondary(for: colorScheme))
+                                )
+                            }
+                        }
+                        
+                        // Reaction button
+                        Button(action: showReactionPicker) {
+                            Image(systemName: "face.smiling")
+                                .font(.system(size: 12))
+                                .foregroundColor(Color.textSecondary(for: colorScheme))
+                                .padding(6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(Color.bgSecondary(for: colorScheme))
+                                )
+                        }
                     }
                 }
-            }
-            
-            // Message text
-            Text(message.text)
-                .font(.system(size: 15))
-                .foregroundColor(Color.textPrimary(for: colorScheme))
-                .fixedSize(horizontal: false, vertical: true)
-                .lineLimit(nil)
-                .multilineTextAlignment(.leading)
-            
-            // Attachments if any
-            if !message.attachments.isEmpty {
-                ForEach(message.attachments) { attachment in
-                    SlackAttachmentView(attachment: attachment)
+                
+                // Message text
+                Text(message.text)
+                    .font(.system(size: 15))
+                    .foregroundColor(Color.textPrimary(for: colorScheme))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(nil)
+                    .multilineTextAlignment(.leading)
+                
+                // Attachments if any
+                if !message.attachments.isEmpty {
+                    ForEach(message.attachments) { attachment in
+                        SlackAttachmentView(attachment: attachment)
+                    }
                 }
-            }
-            
-            // Reactions if any
-            if let reactions = message.reactions, !reactions.isEmpty {
-                HStack(spacing: 8) {
-                    ForEach(reactions) { reaction in
-                        Button(action: {
-                            viewModel.toggleReaction(emoji: reaction.name, messageId: message.id)
-                        }) {
-                            HStack(spacing: 4) {
-                                Text(":\(reaction.name):")
-                                    .font(.system(size: 14))
-                                Text("\(reaction.count)")
-                                    .font(.system(size: 12, weight: .medium))
+                
+                // Reactions if any
+                if let reactions = message.reactions, !reactions.isEmpty {
+                    HStack(spacing: 8) {
+                        ForEach(reactions) { reaction in
+                            Button(action: {
+                                viewModel.toggleReaction(emoji: reaction.name, messageId: message.id)
+                            }) {
+                                HStack(spacing: 4) {
+                                    Text(":\(reaction.name):")
+                                        .font(.system(size: 14))
+                                    Text("\(reaction.count)")
+                                        .font(.system(size: 12, weight: .medium))
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    Capsule()
+                                        .fill(reaction.userHasReacted(currentUserId: viewModel.currentUserId) ? 
+                                            Theme.Colors.debotOrange.opacity(0.15) : 
+                                            Color.bgSecondary(for: colorScheme))
+                                )
+                                .foregroundColor(reaction.userHasReacted(currentUserId: viewModel.currentUserId) ? 
+                                    Theme.Colors.debotOrange : 
+                                    Color.textPrimary(for: colorScheme))
                             }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(
-                                Capsule()
-                                    .fill(reaction.userHasReacted(currentUserId: viewModel.currentUserId) ? 
-                                        Theme.Colors.debotOrange.opacity(0.15) : 
-                                        Color.bgSecondary(for: colorScheme))
-                            )
-                            .foregroundColor(reaction.userHasReacted(currentUserId: viewModel.currentUserId) ? 
-                                Theme.Colors.debotOrange : 
-                                Color.textPrimary(for: colorScheme))
                         }
                     }
                 }
