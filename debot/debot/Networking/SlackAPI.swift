@@ -553,7 +553,7 @@ struct SlackAPIMessage: Decodable {
     }
     
     // Convert to our app's SlackMessage format
-    func toSlackMessage(channelId: String, channelName: String, userName: String, userAvatar: String?) -> SlackMessage {
+    func toSlackMessage(channelId: String, channelName: String, userName: String, userAvatar: String?, isRead: Bool = false) -> SlackMessage {
         let timestamp = Double(ts) ?? 0
         
         // Convert API reactions to app model reactions if present
@@ -578,7 +578,7 @@ struct SlackAPIMessage: Decodable {
             channelName: channelName,
             text: text,
             timestamp: Date(timeIntervalSince1970: timestamp),
-            isRead: false,
+            isRead: isRead,
             attachments: [],
             threadParentId: thread_ts,
             replyCount: reply_count,

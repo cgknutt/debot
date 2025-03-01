@@ -429,6 +429,162 @@ class ErrorManager {
     }
 }
 
+// Message row component
+struct MessageRow: View {
+    let message: SlackMessage
+    let viewModel: SlackViewModel
+    let showReactionPicker: () -> Void
+    let showThreadView: () -> Void
+    
+    @Environment(\.colorScheme) var colorScheme
+    @Environment(\.themeColors) var themeColors
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Message header
+            HStack(alignment: .center, spacing: 8) {
+                // User avatar (placeholder or real)
+                if let avatarUrl = message.userAvatar, !avatarUrl.isEmpty {
+                    AsyncImage(url: URL(string: avatarUrl)) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Color.gray.opacity(0.2)
+                    }
+                    .frame(width: 36, height: 36)
+                    .clipShape(Circle())
+                } else {
+                    // Default avatar
+                    ZStack {
+                        Circle()
+                            .fill(themeColors.debotOrange.opacity(0.2))
+                        
+                        Text(String(message.userName.prefix(1).uppercased()))
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(themeColors.debotOrange)
+                    }
+                    .frame(width: 36, height: 36)
+                }
+                
+                VStack(alignment: .leading, spacing: 1) {
+                    // Username
+                    Text(message.userName)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(Color.textPrimary(for: colorScheme))
+                    
+                    // Channel and time
+                    HStack(spacing: 4) {
+                        Text("#\(message.channelName)")
+                            .font(.system(size: 13))
+                            .foregroundColor(themeColors.debotOrange)
+                        
+                        Text("•")
+                            .font(.system(size: 13))
+                            .foregroundColor(Color.textSecondary(for: colorScheme))
+                        
+                        Text(message.timestamp.timeAgoDisplay())
+                            .font(.system(size: 13))
+                            .foregroundColor(Color.textSecondary(for: colorScheme))
+                    }
+                }
+                
+                Spacer()
+                
+                // Message actions
+                HStack(spacing: 12) {
+                    // Reply button for thread parent messages
+                    if message.isThreadParent || message.replyCount ?? 0 > 0 {
+                        Button(action: showThreadView) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "bubble.left")
+                                    .font(.system(size: 12))
+                                
+                                if let replyCount = message.replyCount, replyCount > 0 {
+                                    Text("\(replyCount)")
+                                        .font(.system(size: 12))
+                                }
+                            }
+                            .foregroundColor(Color.textSecondary(for: colorScheme))
+                            .padding(6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color.bgSecondary(for: colorScheme))
+                            )
+                        }
+                    }
+                    
+                    // Reaction button
+                    Button(action: showReactionPicker) {
+                        Image(systemName: "face.smiling")
+                            .font(.system(size: 12))
+                            .foregroundColor(Color.textSecondary(for: colorScheme))
+                            .padding(6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color.bgSecondary(for: colorScheme))
+                            )
+                    }
+                }
+            }
+            
+            // Message text
+            Text(message.text)
+                .font(.system(size: 15))
+                .foregroundColor(Color.textPrimary(for: colorScheme))
+                .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(nil)
+                .multilineTextAlignment(.leading)
+            
+            // Attachments if any
+            if !message.attachments.isEmpty {
+                ForEach(message.attachments) { attachment in
+                    SlackAttachmentView(attachment: attachment)
+                }
+            }
+            
+            // Reactions if any
+            if let reactions = message.reactions, !reactions.isEmpty {
+                HStack(spacing: 8) {
+                    ForEach(reactions) { reaction in
+                        Button(action: {
+                            viewModel.toggleReaction(emoji: reaction.name, messageId: message.id)
+                        }) {
+                            HStack(spacing: 4) {
+                                Text(":\(reaction.name):")
+                                    .font(.system(size: 14))
+                                Text("\(reaction.count)")
+                                    .font(.system(size: 12, weight: .medium))
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule()
+                                    .fill(reaction.userHasReacted(currentUserId: viewModel.currentUserId) ? 
+                                        themeColors.debotOrange.opacity(0.15) : 
+                                        Color.bgSecondary(for: colorScheme))
+                            )
+                            .foregroundColor(reaction.userHasReacted(currentUserId: viewModel.currentUserId) ? 
+                                themeColors.debotOrange : 
+                                Color.textPrimary(for: colorScheme))
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.bgSecondary(for: colorScheme))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.dividerColor(for: colorScheme), lineWidth: 0.5)
+        )
+    }
+}
+
 struct SlackMessagesView: View {
     @ObservedObject var viewModel: SlackViewModel
     @Environment(\.themeColors) var themeColors
@@ -489,6 +645,9 @@ struct SlackMessagesView: View {
     
     @State private var showSlackSetup = false // Added state for setup sheet
     @State private var isPressed = false // For button animation
+    
+    // Add this after the other @State variables
+    @State private var visibleMessageIds: [String] = []
     
     init(viewModel: SlackViewModel, showingFlights: Bool = false) {
         self._viewModel = ObservedObject(wrappedValue: viewModel)
@@ -758,19 +917,7 @@ struct SlackMessagesView: View {
                 }
                 Spacer()
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 6 * sizePreference.paddingScale) {
-                        ForEach(displayedMessages, id: \.id) { message in
-                            messageRow(message: message)
-                                .padding(.horizontal, 16 * sizePreference.paddingScale)
-                                .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                                .id(message.id) // Use ID for better list diffing
-                        }
-                    }
-                    .padding(.vertical, 8 * sizePreference.paddingScale)
-                }
-                .transition(.opacity)
-                .frame(maxHeight: .infinity) // Allow the ScrollView to expand to fill available space
+                messageList
             }
             
             // Message input
@@ -899,7 +1046,6 @@ struct SlackMessagesView: View {
                                 .background(
                                     Capsule()
                                         .fill(Color.bgTertiary(for: colorScheme).opacity(0.6))
-                                )
                                 .onTapGesture {
                                     viewModel.toggleReaction(emoji: reaction.name, messageId: message.id)
                                 }
@@ -1200,38 +1346,32 @@ struct SlackMessagesView: View {
         return messages.sorted { $0.timestamp > $1.timestamp }
     }
     
-    // Refresh messages with improved error handling
+    // Add this method to handle manual refresh
     private func refreshMessages() {
-        // Show refresh animation
+        // Visual feedback for refresh button
         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
             refreshButtonPressed = true
         }
         
-        Task {
-            do {
-                // Since viewModel.loadMessages() can throw (as seen in SlackViewModel implementation)
-                // this try is valid and the catch block is reachable
-                try await viewModel.loadMessages()
-                await MainActor.run {
-                    lastRefreshTime = Date()
-                    ErrorManager.shared.resetRetry(forOperation: "loadMessages")
-                }
-            } catch {
-                // If error occurs, check if we should retry
-                if ErrorManager.shared.shouldRetry(forOperation: "loadMessages") {
-                    let delay = ErrorManager.shared.getRetryDelay(forOperation: "loadMessages")
-                    try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                    refreshMessages() // Retry with backoff
-                }
-            }
-            
-            // Update refresh time and reset animation
-            await MainActor.run {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    refreshButtonPressed = false
-                }
-            }
+        // Reset after animation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            self.refreshButtonPressed = false
         }
+        
+        // Perform an actual refresh
+        Task {
+            await viewModel.forceRefreshMessages()
+            lastRefreshTime = Date()
+        }
+    }
+    
+    // Add this method to handle marking messages as read
+    private func updateVisibleMessages(messageIds: [String]) {
+        // Store visible message IDs
+        visibleMessageIds = messageIds
+        
+        // Mark visible messages as read
+        viewModel.markVisibleMessagesAsRead(messagesIds: messageIds)
     }
     
     // Send message
@@ -1294,8 +1434,14 @@ struct SlackMessagesView: View {
                     ScrollView {
                         LazyVStack(spacing: 8) {
                             ForEach(threadMessages) { message in
-                                messageRow(message: message)
-                                    .padding(.horizontal)
+                                MessageRow(message: message, viewModel: viewModel, showReactionPicker: {
+                                    self.reactionTargetMessage = message.id
+                                    self.showingReactionPicker = true
+                                }, showThreadView: {
+                                    self.threadParentId = message.id
+                                    self.showingThreadView = true
+                                })
+                                .padding(.horizontal)
                             }
                         }
                         .padding(.vertical)
@@ -1350,6 +1496,61 @@ struct SlackMessagesView: View {
             SlackReaction(name: "raised_hands", count: 0, userIds: [])
         ]
     }
+    
+    // Find the section where messages are displayed in a ScrollView and update it
+    private var messageList: some View {
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                // Get displayed messages based on filters
+                let displayedMessages = filteredMessages
+                
+                if displayedMessages.isEmpty && !viewModel.isLoading {
+                    emptyStateView
+                } else {
+                    ForEach(displayedMessages) { message in
+                        MessageRow(message: message, viewModel: viewModel, showReactionPicker: {
+                            self.reactionTargetMessage = message.id
+                            self.showingReactionPicker = true
+                        }, showThreadView: {
+                            self.threadParentId = message.id
+                            self.showingThreadView = true
+                        })
+                        .id(message.id)
+                        .onAppear {
+                            // When a message appears, add it to visible messages
+                            if !visibleMessageIds.contains(message.id) {
+                                visibleMessageIds.append(message.id)
+                                // Mark this message as read
+                                viewModel.markAsRead(messageId: message.id)
+                            }
+                        }
+                        .onDisappear {
+                            // When a message disappears, remove it from visible messages
+                            if let index = visibleMessageIds.firstIndex(of: message.id) {
+                                visibleMessageIds.remove(at: index)
+                            }
+                        }
+                    }
+                    
+                    // Load all visible message IDs after view appears
+                    .onAppear {
+                        // On initial appearance, mark all visible messages as read
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            viewModel.markVisibleMessagesAsRead(messagesIds: visibleMessageIds)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal)
+            // Add a pull-to-refresh mechanism
+            .refreshable {
+                // This uses the native pull-to-refresh gesture
+                await viewModel.forceRefreshMessages()
+                lastRefreshTime = Date()
+            }
+        }
+        .frame(maxHeight: .infinity) // Allow the ScrollView to expand to fill available space
+    }
 }
 
 // Container view that safely creates the ViewModel
@@ -1390,4 +1591,21 @@ struct SlackMessagesViewContainer: View {
 #Preview {
     SlackMessagesViewContainer(showingFlights: false)
         .preferredColorScheme(.dark)
+}
+
+// MARK: - Date Extension for Time Ago
+extension Date {
+    func timeAgoDisplay() -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        let timeInterval = self.timeIntervalSinceNow
+        
+        // For very recent messages (less than a minute ago)
+        if timeInterval > -60 {
+            return "just now"
+        }
+        
+        // For older messages, use the relative formatter
+        return formatter.localizedString(for: self, relativeTo: Date())
+    }
 } 
