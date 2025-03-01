@@ -2,13 +2,12 @@ import SwiftUI
 import Foundation
 import Combine // Added for publishers
 
-// Import directly to avoid ambiguity - these imports are needed for proper type resolution
-// even though the compiler shows warnings about the module being part of 'debot'
-import struct debot.SlackMessage
-import struct debot.SlackAttachment
-import struct debot.SlackReaction
-import class debot.SlackViewModel
-import struct debot.ThemeColors
+// These types are part of the same module and don't need explicit imports
+// import struct debot.SlackMessage
+// import struct debot.SlackAttachment
+// import struct debot.SlackReaction
+// import class debot.SlackViewModel
+// import struct debot.ThemeColors
 
 // Professional color scheme with light/dark mode support
 extension Color {
