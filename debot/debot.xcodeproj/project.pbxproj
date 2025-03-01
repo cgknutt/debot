@@ -30,11 +30,10 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		80CA63A22D6E466D00B887CB /* Exceptions for "debot" folder in "debot" target */ = {
+		80E9017B2D70F685009904AF /* Exceptions for "debot" folder in "debot" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				Views/Components/Screenshots/README.md,
 			);
 			target = 804C293B2D6D776700C4EA5B /* debot */;
 		};
@@ -44,7 +43,7 @@
 		804C293E2D6D776700C4EA5B /* debot */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				80CA63A22D6E466D00B887CB /* Exceptions for "debot" folder in "debot" target */,
+				80E9017B2D70F685009904AF /* Exceptions for "debot" folder in "debot" target */,
 			);
 			path = debot;
 			sourceTree = "<group>";
@@ -89,10 +88,10 @@
 		804C29332D6D776700C4EA5B = {
 			isa = PBXGroup;
 			children = (
-				804C293E2D6D776700C4EA5B /* debot */,
 				804C294F2D6D776800C4EA5B /* debotTests */,
 				804C29592D6D776800C4EA5B /* debotUITests */,
 				804C293D2D6D776700C4EA5B /* Products */,
+				804C293E2D6D776700C4EA5B /* debot */,
 			);
 			sourceTree = "<group>";
 		};
@@ -116,6 +115,7 @@
 				804C29382D6D776700C4EA5B /* Sources */,
 				804C29392D6D776700C4EA5B /* Frameworks */,
 				804C293A2D6D776700C4EA5B /* Resources */,
+				805EB5FF2D700FC6000401A1 /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -244,6 +244,26 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		805EB5FF2D700FC6000401A1 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "#inputFileListPaths = (); #outputFileListPaths = (); echo \"Sandbox-safe: Disabled find commands\"";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		804C29382D6D776700C4EA5B /* Sources */ = {
@@ -413,6 +433,7 @@
 				DEVELOPMENT_TEAM = F8YZWFHU53;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				"INFOPLIST_FILE[sdk=*]" = debot/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -442,6 +463,7 @@
 				DEVELOPMENT_TEAM = F8YZWFHU53;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				"INFOPLIST_FILE[sdk=*]" = debot/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

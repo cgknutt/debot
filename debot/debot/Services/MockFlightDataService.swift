@@ -54,7 +54,7 @@ class MockFlightDataService {
     // Generate a random airport pair (departure and arrival)
     private func generateAirportPair() -> (departure: String, arrival: String) {
         let allCodes = Array(airports.keys)
-        var depIndex = Int.random(in: 0..<allCodes.count)
+        let depIndex = Int.random(in: 0..<allCodes.count)
         var arrIndex = Int.random(in: 0..<allCodes.count)
         
         // Make sure departure and arrival are different

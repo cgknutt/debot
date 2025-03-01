@@ -4,7 +4,7 @@ import SwiftUI
 enum Theme {
     // MARK: - Colors
     enum Colors {
-        static let primary = Color("Primary", bundle: .main)
+        static let primary = Color("AppPrimaryColor", bundle: .main)
         static let secondary = Color("Secondary", bundle: .main)
         static let accent = Color("Accent", bundle: .main)
         static let background = Color("Background", bundle: .main)
@@ -13,13 +13,14 @@ enum Theme {
     
     // MARK: - Typography
     enum Typography {
-        static let titleLarge = Font.system(size: 34, weight: .bold)
-        static let titleMedium = Font.system(size: 28, weight: .semibold)
-        static let titleSmall = Font.system(size: 22, weight: .medium)
+        // All typography now uses Cooper Black
+        static let titleLarge = Font.cooperBlack(size: 34)
+        static let titleMedium = Font.cooperBlack(size: 28)
+        static let titleSmall = Font.cooperBlack(size: 22)
         
-        static let bodyLarge = Font.system(size: 17)
-        static let bodyMedium = Font.system(size: 15)
-        static let bodySmall = Font.system(size: 13)
+        static let bodyLarge = Font.cooperBlack(size: 17)
+        static let bodyMedium = Font.cooperBlack(size: 15)
+        static let bodySmall = Font.cooperBlack(size: 13)
     }
     
     // MARK: - Layout

@@ -185,36 +185,36 @@ public struct ThemeColors {
         switch colorScheme {
         case .dark:
             return ThemeColors(
-                background: .debotBackground,
-                cardBackground: .debotBrown,
-                secondaryBackground: .debotLightBrown,
+                background: Color(UIColor.systemBackground),
+                cardBackground: Color(UIColor.secondarySystemBackground),
+                secondaryBackground: Color(UIColor.tertiarySystemBackground),
                 accent: .debotOrange,
-                text: .white,
-                secondaryText: Color.white.opacity(0.7),
-                divider: Color.white.opacity(0.2),
-                error: Color.red
+                text: Color(UIColor.label),
+                secondaryText: Color(UIColor.secondaryLabel),
+                divider: Color(UIColor.separator),
+                error: Color(UIColor.systemRed)
             )
         case .light:
             return ThemeColors(
-                background: .debotCream,
-                cardBackground: .debotWarmWhite,
-                secondaryBackground: .debotSoftBrown,
+                background: Color(UIColor.systemBackground),
+                cardBackground: Color(UIColor.secondarySystemBackground),
+                secondaryBackground: Color(UIColor.tertiarySystemBackground),
                 accent: .debotOrange,
-                text: .debotDarkText,
-                secondaryText: Color.debotDarkText.opacity(0.7),
-                divider: Color.black.opacity(0.2),
-                error: Color.red
+                text: Color(UIColor.label),
+                secondaryText: Color(UIColor.secondaryLabel),
+                divider: Color(UIColor.separator),
+                error: Color(UIColor.systemRed)
             )
         @unknown default:
             return .init(
-                background: .debotBackground,
-                cardBackground: .debotBrown,
-                secondaryBackground: .debotLightBrown,
+                background: Color(UIColor.systemBackground),
+                cardBackground: Color(UIColor.secondarySystemBackground),
+                secondaryBackground: Color(UIColor.tertiarySystemBackground),
                 accent: .debotOrange,
-                text: .white,
-                secondaryText: .gray,
-                divider: Color.white.opacity(0.2),
-                error: Color.red
+                text: Color(UIColor.label),
+                secondaryText: Color(UIColor.secondaryLabel),
+                divider: Color(UIColor.separator),
+                error: Color(UIColor.systemRed)
             )
         }
     }

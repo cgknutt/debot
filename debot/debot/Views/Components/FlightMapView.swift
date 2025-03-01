@@ -27,13 +27,12 @@ struct FlightMapView: View {
     
     var body: some View {
         ZStack {
-            Map(coordinateRegion: $region, annotationItems: flights) { flight in
-                MapAnnotation(coordinate: CLLocationCoordinate2D(
-                    latitude: flight.latitude, 
-                    longitude: flight.longitude
-                )) {
-                    FlightAnnotationView(flight: flight, isSelected: flight.id == selectedFlight?.id) {
-                        selectedFlight = flight
+            Map(initialPosition: MapCameraPosition.region(region)) {
+                ForEach(flights) { flight in
+                    Annotation(flight.flightNumber, coordinate: CLLocationCoordinate2D(latitude: flight.latitude, longitude: flight.longitude)) {
+                        FlightAnnotationView(flight: flight, isSelected: flight.id == selectedFlight?.id) {
+                            selectedFlight = flight
+                        }
                     }
                 }
             }

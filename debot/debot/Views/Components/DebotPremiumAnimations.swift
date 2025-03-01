@@ -79,7 +79,7 @@ struct ParticleEffectView: View {
         TimelineView(.animation) { timeline in
             Canvas { context, size in
                 let timeInterval = timeline.date.timeIntervalSince1970
-                let baseAngle = timeInterval.remainder(dividingBy: 2 * .pi)
+                let _ = timeInterval.remainder(dividingBy: 2 * .pi)
                 
                 for i in 0..<particleCount {
                     let position = getParticlePosition(index: i, time: timeInterval, size: size)

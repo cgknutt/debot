@@ -2,15 +2,28 @@ import Foundation
 import SwiftUI
 import Combine
 
+// Custom Error type
+enum SlackViewModelError: Error, LocalizedError {
+    case general(String)
+    
+    var errorDescription: String? {
+        switch self {
+        case .general(let message):
+            return message
+        }
+    }
+}
+
 @MainActor
 class SlackViewModel: ObservableObject {
     // Published properties for UI updates
     @Published var messages: [SlackMessage] = []
     @Published var isLoading: Bool = false
-    @Published var error: String? = nil
+    @Published var error: Error? = nil  // Changed from String? to Error?
     @Published var unreadCount: Int = 0
     @Published var selectedChannel: String? = nil
     @Published var isConnected: Bool = false
+    @Published var currentUserId: String? = nil  // Current user ID for tracking reactions
     
     // Storage for user defaults
     private var storage = UserDefaults.standard
@@ -57,25 +70,40 @@ class SlackViewModel: ObservableObject {
         
         do {
             if useMockData {
-                // Load mock data
-                messages = generateMockMessages()
+                // Use mock data
+                let newMessages = generateMockMessages()
+                
+                // Set current user ID for mock data
+                currentUserId = "U123456" // Mock user ID
+                
+                // Update UI on main thread
+                await MainActor.run {
+                    self.messages = newMessages
+                    self.unreadCount = newMessages.filter { !$0.isRead }.count
+                    self.isLoading = false
+                    self.isConnected = true
+                    
+                    // Save data for offline use if needed
+                    saveMessageCache(messages: newMessages)
+                }
             } else {
-                // Load real data from Slack API
+                // Use the existing loadRealMessages function for real API data
                 try await loadRealMessages()
+                
+                // Set current user ID from Slack API
+                currentUserId = try await SlackAPI.shared.getCurrentUserId()
+                
+                // Update connection status
+                isLoading = false
+                isConnected = true
             }
-            
-            // Update unread count
-            updateUnreadCount()
-            
-            // Update channel map
-            updateChannelMap()
-            
-            isLoading = false
-            isConnected = true
         } catch {
-            self.error = error.localizedDescription
-            isLoading = false
-            isConnected = false
+            await MainActor.run {
+                self.error = error  // Now this is fine since error is Error? type
+                self.isLoading = false
+                self.isConnected = false
+                print("Error loading messages: \(error.localizedDescription)")
+            }
         }
     }
     
@@ -275,8 +303,19 @@ class SlackViewModel: ObservableObject {
     
     // MARK: - Channel Methods
     
-    var channels: [String: String] {
-        channelMap
+    // Old dictionary-based channels property
+    // var channels: [String: String] {
+    //     channelMap
+    // }
+    
+    // New channels property that returns an array of identifiable objects
+    struct ChannelInfo: Identifiable {
+        let id: String
+        let name: String
+    }
+    
+    var channels: [ChannelInfo] {
+        channelMap.map { ChannelInfo(id: $0.key, name: $0.value) }
     }
     
     func filterMessagesByChannel(_ channelId: String?) -> [SlackMessage] {
@@ -297,62 +336,40 @@ class SlackViewModel: ObservableObject {
     
     // MARK: - Test API Connection
     
+    @MainActor
     func testAPIConnection() async -> String {
         do {
-            isLoading = true
-            error = nil
-            
-            print("Testing Slack API connection...")
-            let channels = try await SlackAPI.shared.getChannels()
-            print("Successfully retrieved \(channels.count) channels!")
-            
-            // Enhanced debugging
-            if channels.isEmpty {
-                print("WARNING: No channels were returned by the API!")
-                return "API Test: Success, but no channels found"
-            } else {
-                // Print details about each channel
-                print("\n--- Channel Details ---")
-                for (index, channel) in channels.enumerated() {
-                    print("Channel \(index+1): id=\(channel.id), name=\(channel.name), is_member=\(channel.is_member)")
-                }
-                
-                // Try to get messages from the first channel where is_member is true
-                if let memberChannel = channels.first(where: { $0.is_member }) {
-                    print("\nAttempting to fetch messages for channel: \(memberChannel.name) (\(memberChannel.id))")
-                    
-                    do {
-                        let messages = try await SlackAPI.shared.getMessages(channelId: memberChannel.id)
-                        print("Found \(messages.count) messages in channel \(memberChannel.name)")
-                        
-                        if messages.isEmpty {
-                            return "API Test Successful: Connected to \(channels.count) channels, but no messages found in \(memberChannel.name)"
-                        } else {
-                            return "API Test Successful: Found \(channels.count) channels and \(messages.count) messages in \(memberChannel.name)"
-                        }
-                    } catch {
-                        print("Error fetching messages: \(error)")
-                        return "API Test Partial: Found \(channels.count) channels but failed to fetch messages: \(error.localizedDescription)"
-                    }
-                } else {
-                    print("WARNING: No channels found where bot is a member!")
-                    return "API Test Warning: Found \(channels.count) channels but not a member of any"
-                }
+            if useMockData {
+                return "Using mock data - no actual API connection needed"
             }
             
-            isLoading = false
-            return "API Test Successful: Found \(channels.count) channels"
-        } catch let slackError as SlackAPI.SlackError {
-            isLoading = false
-            let errorMsg = slackError.errorDescription ?? slackError.localizedDescription
-            self.error = errorMsg
-            print("API Error: \(errorMsg)")
-            return "API Test Failed: \(errorMsg)"
+            // Test the token first
+            if SlackAPI.shared.botToken.isEmpty || SlackAPI.shared.botToken == "REPLACE_WITH_YOUR_SLACK_BOT_TOKEN" {
+                return "Error: No valid Slack token found in SlackConfig.plist"
+            }
+            
+            print("Testing Slack API connection with token: \(SlackAPI.shared.botToken.prefix(10))...")
+            
+            // Try to get channels as a basic test
+            let channels = try await SlackAPI.shared.getChannels()
+            
+            if channels.isEmpty {
+                return "Connected to Slack, but no channels found. Make sure your bot is invited to at least one channel."
+            } else {
+                let channelNames = channels.map { $0.name }.joined(separator: ", ")
+                return "Success! Connected to Slack. Found \(channels.count) channels: \(channelNames)"
+            }
+        } catch let error as SlackAPI.SlackError {
+            switch error {
+            case .apiError(let message):
+                return "API Error: \(message)"
+            case .httpError(let code):
+                return "HTTP Error \(code). Check your internet connection and token."
+            case .notAuthenticated:
+                return "Not authenticated with Slack. Please check your token."
+            }
         } catch {
-            isLoading = false
-            self.error = error.localizedDescription
-            print("API Error: \(error.localizedDescription)")
-            return "API Test Failed: \(error.localizedDescription)"
+            return "Error: \(error.localizedDescription)"
         }
     }
     
@@ -500,7 +517,7 @@ class SlackViewModel: ObservableObject {
             return .success(timestamp)
         } catch {
             isLoading = false
-            self.error = error.localizedDescription
+            self.error = error  // Now this is fine since error is Error? type
             print("Error sending message: \(error.localizedDescription)")
             return .failure(error)
         }
@@ -519,9 +536,38 @@ class SlackViewModel: ObservableObject {
             
             return success
         } catch {
-            self.error = error.localizedDescription
+            self.error = error  // Now this is fine since error is Error? type
             print("Error adding reaction: \(error.localizedDescription)")
             return false
+        }
+    }
+    
+    // Toggle a reaction on a message (add or remove)
+    func toggleReaction(emoji: String, messageId: String) {
+        // Find the message
+        guard let message = messages.first(where: { $0.id == messageId }) else {
+            print("Message not found for reaction toggle")
+            return
+        }
+        
+        // Check if the current user has already reacted with this emoji
+        let userHasReacted = message.reactions?.contains(where: { 
+            $0.name == emoji && $0.userIds.contains(self.currentUserId ?? "")
+        }) ?? false
+        
+        // Perform the appropriate action based on whether the user has already reacted
+        Task {
+            if userHasReacted {
+                // TODO: Implement removeReaction in SlackAPI
+                // For now, we'll just reload messages
+                print("Would remove reaction \(emoji) from message \(messageId)")
+            } else {
+                // Add the reaction
+                let success = await addReaction(name: emoji, messageId: messageId, channelId: message.channelId)
+                if !success {
+                    print("Failed to add reaction")
+                }
+            }
         }
     }
     
@@ -546,5 +592,52 @@ class SlackViewModel: ObservableObject {
         } else {
             return replies.sorted(by: { $0.timestamp < $1.timestamp })
         }
+    }
+    
+    // Save messages to cache for offline use
+    private func saveMessageCache(messages: [SlackMessage]) {
+        // In a real app, you would save to Core Data, Realm, or a file
+        // For this example, we'll just track the latest data in memory
+        print("Saving \(messages.count) messages to cache")
+        // Actual implementation would depend on your persistence strategy
+    }
+    
+    // Method to get a specific message by ID
+    func getMessage(id: String) -> SlackMessage? {
+        return messages.first(where: { $0.id == id })
+    }
+    
+    // Method to send a thread message
+    func sendThreadMessage(text: String, parentId: String) {
+        // In a real app, this would send the message to the Slack API
+        // For now, we'll just add it to our local data
+        
+        guard let parentMessage = getMessage(id: parentId) else {
+            print("Error: Parent message not found")
+            return
+        }
+        
+        let newMessageId = "msg_\(UUID().uuidString)"
+        let timestamp = Date()
+        
+        let threadMessage = SlackMessage(
+            id: newMessageId,
+            userId: currentUserId ?? "U123456", // Use current user or default
+            userName: "You",
+            userAvatar: nil,
+            channelId: parentMessage.channelId,
+            channelName: parentMessage.channelName,
+            text: text,
+            timestamp: timestamp,
+            isRead: true,
+            threadParentId: parentId,
+            isThreadParent: false
+        )
+        
+        // Add to messages array
+        messages.append(threadMessage)
+        
+        // In a real app, we would also update the parent message's reply count
+        // and potentially trigger a refresh
     }
 } 

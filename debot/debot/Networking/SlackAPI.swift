@@ -1,4 +1,7 @@
 import Foundation
+// Remove explicit imports since we're already in the debot module
+// import struct debot.SlackMessage
+// import struct debot.SlackReaction
 
 class SlackAPI {
     static let shared = SlackAPI()
@@ -6,10 +9,19 @@ class SlackAPI {
     // MARK: - Token Management
     // Use a Bot Token (xoxb-) for Web API calls (instead of App Token)
     // You can get one from https://api.slack.com/apps > Your App > OAuth & Permissions
-    private var botToken: String {
+    var botToken: String {
         // In a real app, you would load this from secure storage, keychain, or environment variable
         // For development, we'll use a configuration file that is not tracked by git
-        return SlackTokenManager.shared.getToken()
+        let token = SlackTokenManager.shared.getToken()
+        
+        // Validate token format
+        if token.isEmpty {
+            print("⚠️ WARNING: Empty Slack token!")
+        } else if !token.hasPrefix("xoxb-") {
+            print("⚠️ WARNING: Slack token doesn't have expected prefix 'xoxb-'")
+        }
+        
+        return token
     }
     
     private init() {}
@@ -23,37 +35,45 @@ class SlackAPI {
         var request = URLRequest(url: URL(string: "https://slack.com/api/conversations.list")!)
         request.setValue("Bearer \(botToken)", forHTTPHeaderField: "Authorization")
         
-        let (data, response) = try await URLSession.shared.data(for: request)
+        // Add timeout
+        request.timeoutInterval = 15
         
-        // Debug response
-        if let httpResponse = response as? HTTPURLResponse {
-            print("Channels API Status Code: \(httpResponse.statusCode)")
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
             
-            if httpResponse.statusCode != 200 {
-                throw SlackError.httpError(httpResponse.statusCode)
+            // Debug response
+            if let httpResponse = response as? HTTPURLResponse {
+                print("Channels API Status Code: \(httpResponse.statusCode)")
+                
+                if httpResponse.statusCode != 200 {
+                    throw SlackError.httpError(httpResponse.statusCode)
+                }
             }
-        }
-        
-        // Print full response for debugging
-        if let responseStr = String(data: data, encoding: .utf8) {
-            print("Channels API Response: \(responseStr)")
-        }
-        
-        let decodedResponse = try JSONDecoder().decode(ChannelsResponse.self, from: data)
-        
-        if !decodedResponse.ok {
-            let errorMsg = decodedResponse.error ?? "Unknown API error"
-            print("Slack API Error: \(errorMsg)")
-            print("DETAILED ERROR: This could mean the token doesn't have the required scopes. Required: channels:read")
-            throw SlackError.apiError(errorMsg)
-        }
-        
-        if let channels = decodedResponse.channels {
-            print("SUCCESS: Parsed \(channels.count) channels from the response")
-            return channels
-        } else {
-            print("WARNING: No channels array found in the response")
-            return []
+            
+            // Print full response for debugging
+            if let responseStr = String(data: data, encoding: .utf8) {
+                print("Channels API Response: \(responseStr)")
+            }
+            
+            let decodedResponse = try JSONDecoder().decode(ChannelsResponse.self, from: data)
+            
+            if !decodedResponse.ok {
+                let errorMsg = decodedResponse.error ?? "Unknown API error"
+                print("Slack API Error: \(errorMsg)")
+                print("DETAILED ERROR: This could mean the token doesn't have the required scopes. Required: channels:read")
+                throw SlackError.apiError(errorMsg)
+            }
+            
+            if let channels = decodedResponse.channels {
+                print("SUCCESS: Parsed \(channels.count) channels from the response")
+                return channels
+            } else {
+                print("WARNING: No channels array found in the response")
+                return []
+            }
+        } catch {
+            print("ERROR fetching channels: \(error.localizedDescription)")
+            throw SlackError.apiError("Error fetching channels: \(error.localizedDescription)")
         }
     }
     
@@ -61,12 +81,12 @@ class SlackAPI {
         print("\n--- SLACK API: Fetching Messages for Channel \(channelId) ---")
         print("Note: Bot needs 'channels:history' scope and must be in the channel")
         
-        var components = URLComponents(string: "https://slack.com/api/conversations.history")!
-        components.queryItems = [
+        var urlComponents = URLComponents(string: "https://slack.com/api/conversations.history")!
+        urlComponents.queryItems = [
             URLQueryItem(name: "channel", value: channelId)
         ]
         
-        var request = URLRequest(url: components.url!)
+        var request = URLRequest(url: urlComponents.url!)
         request.setValue("Bearer \(botToken)", forHTTPHeaderField: "Authorization")
         
         print("Fetching messages for channel ID: \(channelId)")
@@ -108,12 +128,12 @@ class SlackAPI {
     }
     
     func getUserInfo(userId: String) async throws -> SlackUser {
-        var components = URLComponents(string: "https://slack.com/api/users.info")!
-        components.queryItems = [
+        var urlComponents = URLComponents(string: "https://slack.com/api/users.info")!
+        urlComponents.queryItems = [
             URLQueryItem(name: "user", value: userId)
         ]
         
-        var request = URLRequest(url: components.url!)
+        var request = URLRequest(url: urlComponents.url!)
         request.setValue("Bearer \(botToken)", forHTTPHeaderField: "Authorization")
         
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -148,8 +168,8 @@ class SlackAPI {
         print("\n--- SLACK API: Attempting to Join Channel \(channelId) ---")
         print("Note: Bot needs 'channels:join' scope to join channels")
         
-        var components = URLComponents(string: "https://slack.com/api/conversations.join")!
-        var request = URLRequest(url: components.url!)
+        let urlComponents = URLComponents(string: "https://slack.com/api/conversations.join")!
+        var request = URLRequest(url: urlComponents.url!)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(botToken)", forHTTPHeaderField: "Authorization")
@@ -191,8 +211,8 @@ class SlackAPI {
         print("\n--- SLACK API: Sending Message to Channel \(channelId) ---")
         print("Note: Bot needs 'chat:write' scope to send messages")
         
-        var components = URLComponents(string: "https://slack.com/api/chat.postMessage")!
-        var request = URLRequest(url: components.url!)
+        let urlComponents = URLComponents(string: "https://slack.com/api/chat.postMessage")!
+        var request = URLRequest(url: urlComponents.url!)
         request.httpMethod = "POST"
         request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(botToken)", forHTTPHeaderField: "Authorization")
@@ -253,8 +273,8 @@ class SlackAPI {
         print("\n--- SLACK API: Adding Reaction to Message ---")
         print("Note: Bot needs 'reactions:write' scope to add reactions")
         
-        var components = URLComponents(string: "https://slack.com/api/reactions.add")!
-        var request = URLRequest(url: components.url!)
+        let urlComponents = URLComponents(string: "https://slack.com/api/reactions.add")!
+        var request = URLRequest(url: urlComponents.url!)
         request.httpMethod = "POST"
         request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(botToken)", forHTTPHeaderField: "Authorization")
@@ -302,12 +322,12 @@ class SlackAPI {
         print("\n--- SLACK API: Fetching Direct Message Channels ---")
         print("Note: Bot needs 'im:read' scope to list DMs")
         
-        var components = URLComponents(string: "https://slack.com/api/conversations.list")!
-        components.queryItems = [
+        var urlComponents = URLComponents(string: "https://slack.com/api/conversations.list")!
+        urlComponents.queryItems = [
             URLQueryItem(name: "types", value: "im")
         ]
         
-        var request = URLRequest(url: components.url!)
+        var request = URLRequest(url: urlComponents.url!)
         request.setValue("Bearer \(botToken)", forHTTPHeaderField: "Authorization")
         
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -340,6 +360,47 @@ class SlackAPI {
         } else {
             print("WARNING: No DM channels array found in the response")
             return []
+        }
+    }
+    
+    // MARK: - User Management
+    
+    // Get the current user's ID
+    func getCurrentUserId() async throws -> String {
+        print("\n--- SLACK API: Fetching Current User ID ---")
+        print("Note: Bot needs 'users:read' scope to get user info")
+        
+        var request = URLRequest(url: URL(string: "https://slack.com/api/auth.test")!)
+        request.setValue("Bearer \(botToken)", forHTTPHeaderField: "Authorization")
+        
+        // Add timeout
+        request.timeoutInterval = 15
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        // Debug response
+        if let httpResponse = response as? HTTPURLResponse {
+            print("Auth Test API Status Code: \(httpResponse.statusCode)")
+            
+            if httpResponse.statusCode != 200 {
+                throw SlackError.httpError(httpResponse.statusCode)
+            }
+        }
+        
+        // Print full response for debugging
+        if let responseStr = String(data: data, encoding: .utf8) {
+            print("Auth Test API Response: \(responseStr)")
+        }
+        
+        // Parse response
+        let jsonObject = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        if let userId = jsonObject?["user_id"] as? String {
+            print("Current User ID: \(userId)")
+            return userId
+        } else if let error = jsonObject?["error"] as? String {
+            throw SlackError.apiError(error)
+        } else {
+            throw SlackError.apiError("Could not get user ID")
         }
     }
     
@@ -450,6 +511,7 @@ struct SlackAPIMessage: Decodable {
         var messageReactions: [SlackReaction]?
         if let apiReactions = reactions, !apiReactions.isEmpty {
             messageReactions = apiReactions.map { apiReaction in
+                // Use fully qualified name to avoid ambiguity
                 SlackReaction(
                     name: apiReaction.name,
                     count: apiReaction.count,

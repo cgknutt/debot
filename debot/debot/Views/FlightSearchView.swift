@@ -17,34 +17,32 @@ enum SearchMode {
 // NOTE: Using glass effect modifiers from Views/SharedGlassEffects.swift
 
 extension Color {
-    // Dark Theme Colors
-    static let debotBrown = Color(UIColor(red: 0.2, green: 0.15, blue: 0.13, alpha: 1.0))
-    static let debotNavy = Color(UIColor(red: 0.05, green: 0.1, blue: 0.2, alpha: 1.0))
-    static let debotGray = Color(UIColor(red: 0.15, green: 0.15, blue: 0.15, alpha: 1.0))
-    static let debotBackground = Color(UIColor(red: 0.1, green: 0.1, blue: 0.12, alpha: 1.0))
-    static let debotLightBrown = Color(UIColor(red: 0.35, green: 0.25, blue: 0.2, alpha: 1.0))
+    // Legacy neutral colors - replaced with system colors
+    static let neutralGray1 = Color(UIColor.systemGray)
+    static let neutralGray2 = Color(UIColor.systemGray2)
+    static let neutralGray3 = Color(UIColor.systemGray3)
+    static let neutralGray4 = Color(UIColor.systemGray4)
+    static let neutralGray5 = Color(UIColor.systemGray5)
+    static let neutralGray6 = Color(UIColor.systemGray6)
     
-    // Light Theme Colors
-    static let debotCream = Color(UIColor(red: 0.95, green: 0.95, blue: 0.92, alpha: 1.0))
-    static let debotLightBlue = Color(UIColor(red: 0.9, green: 0.95, blue: 1.0, alpha: 1.0))
-    static let debotLightGray = Color(UIColor(red: 0.9, green: 0.9, blue: 0.9, alpha: 1.0))
-    static let debotWarmWhite = Color(UIColor(red: 0.98, green: 0.96, blue: 0.94, alpha: 1.0))
-    static let debotSoftBrown = Color(UIColor(red: 0.9, green: 0.85, blue: 0.8, alpha: 1.0))
+    // Background colors
+    static let backgroundPrimary = Color(UIColor.systemBackground)
+    static let backgroundSecondary = Color(UIColor.secondarySystemBackground)
+    static let backgroundTertiary = Color(UIColor.tertiarySystemBackground)
     
     // Accent Colors
-    static let debotTeal = Color(UIColor(red: 0.0, green: 0.5, blue: 0.5, alpha: 1.0))
-    static let debotGold = Color(UIColor(red: 0.85, green: 0.65, blue: 0.3, alpha: 1.0))
     static let debotOrange = Color(UIColor(red: 0.9, green: 0.5, blue: 0.1, alpha: 1.0))
-    
-    // Text Colors
-    static let debotDarkText = Color(UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 1.0))
+    static let debotGold = Color(UIColor(red: 0.85, green: 0.65, blue: 0.3, alpha: 1.0))
+    static let debotBrown = Color(UIColor(red: 0.6, green: 0.4, blue: 0.2, alpha: 1.0))
     
     // Alert Colors
-    static let debotRed = Color(UIColor(red: 0.8, green: 0.0, blue: 0.0, alpha: 1.0))
-    static let debotGreen = Color(UIColor(red: 0.0, green: 0.6, blue: 0.0, alpha: 1.0))
+    static let alertRed = Color(UIColor.systemRed)
+    static let alertGreen = Color(UIColor.systemGreen)
+    static let alertBlue = Color(UIColor.systemBlue)
+    static let alertYellow = Color(UIColor.systemYellow)
     
     // Other UI Elements
-    static let searchBackground = Color(UIColor(red: 0.95, green: 0.95, blue: 0.95, alpha: 0.8))
+    static let searchBackground = Color(UIColor.systemGray6)
 }
 
 // Custom TextField Style
@@ -52,10 +50,29 @@ struct DebotTextFieldStyle: TextFieldStyle {
     func _body(configuration: TextField<Self._Label>) -> some View {
         configuration
             .padding(12)
-            .background(Color.debotBrown)
+            .background(Color.debotOrange.opacity(0.2))
             .cornerRadius(10)
             .foregroundColor(.white)
             .tint(.debotOrange)
+    }
+}
+
+// Custom placeholder style for text fields to properly apply Titan One font
+struct PlaceholderStyle: ViewModifier {
+    var showPlaceholder: Bool
+    var placeholder: String
+    var font: Font
+    
+    func body(content: Content) -> some View {
+        ZStack(alignment: .leading) {
+            if showPlaceholder {
+                Text(placeholder)
+                    .font(font)
+                    .foregroundColor(.gray)
+                    .padding(.leading, 4)
+            }
+            content
+        }
     }
 }
 
@@ -125,7 +142,7 @@ struct ThemeSelector: View {
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
-        .onChange(of: themeMode) { _ in
+        .onChange(of: themeMode) { oldValue, newValue in
             withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
                 isRotating = true
             }
@@ -163,6 +180,7 @@ struct FlightSearchView: View {
     @State private var mapFlights: [FlightMapData] = []
     @State private var searchMode: SearchMode = .search
     @State private var selectedFlight: ViewFlight? = nil
+    @State private var showNoResults = false
     
     // Airport coordinate dictionaries
     private let airportLatitudes: [String: Double] = [
@@ -182,6 +200,23 @@ struct FlightSearchView: View {
     // Initialize with an optional viewModel
     init(viewModel: FlightSearchViewModel) {
         self._viewModel = ObservedObject(wrappedValue: viewModel)
+        
+        // Configure UISegmentedControl to use Titan One font
+        let fontName = "TitanOne-Regular"
+        if let font = UIFont(name: fontName, size: 16) {
+            UISegmentedControl.appearance().setTitleTextAttributes(
+                [.font: font], for: .normal)
+            UISegmentedControl.appearance().setTitleTextAttributes(
+                [.font: font], for: .selected)
+        } else {
+            // Try alternative name
+            if let font = UIFont(name: "TitanOne", size: 16) {
+                UISegmentedControl.appearance().setTitleTextAttributes(
+                    [.font: font], for: .normal)
+                UISegmentedControl.appearance().setTitleTextAttributes(
+                    [.font: font], for: .selected)
+            }
+        }
     }
     
     // MARK: - Computed Properties
@@ -206,10 +241,10 @@ struct FlightSearchView: View {
                     VStack(spacing: 12) {
                         // Mode toggle
                         Picker("Search Mode", selection: $searchMode) {
-                            Text("Search").tag(SearchMode.search)
-                            Text("Random").tag(SearchMode.random)
+                            Text("Search").font(.cooperBody).tag(SearchMode.search)
+                            Text("Random").font(.cooperBody).tag(SearchMode.random)
                         }
-                        .pickerStyle(SegmentedPickerStyle())
+                        .pickerStyle(SwiftUI.SegmentedPickerStyle())
                         .padding(.horizontal, 12)
                         .padding(.top, 8)
                         
@@ -217,11 +252,16 @@ struct FlightSearchView: View {
                             // Search bar - TIGHTENED PADDING
                             HStack {
                                 TextField("Enter flight number, route, or airport", text: $searchText)
+                                    .font(.cooperSmall)
                                     .padding(8)
                                     .background(colors.cardBackground)
                                     .cornerRadius(8)
                                     .foregroundColor(colors.text)
                                     .accentColor(colors.accent)
+                                    // Add custom placeholder styling
+                                    .modifier(PlaceholderStyle(showPlaceholder: searchText.isEmpty, 
+                                              placeholder: "Enter flight number, route, or airport", 
+                                              font: .cooperSmall))
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 8)
                                             .stroke(colors.divider, lineWidth: 1)
@@ -243,6 +283,7 @@ struct FlightSearchView: View {
                                     HapticFeedbackManager.shared.selection()
                                 }) {
                                     Image(systemName: "magnifyingglass")
+                                        .font(.cooperBody)
                                         .foregroundColor(colors.accent)
                                         .padding(8)
                                         .background(colors.cardBackground)
@@ -271,7 +312,7 @@ struct FlightSearchView: View {
                                     // Initial state - REPLACED CARD WITH SIMPLE TITLE
                                     VStack(spacing: 8) {
                                         Text("Find Your Flight")
-                                            .font(.system(size: 34, weight: .black, design: .serif))
+                                            .font(.cooperLargeTitle)
                                             .foregroundColor(colors.accent)
                                             .shadow(color: colors.text.opacity(0.2), radius: 1, x: 1, y: 1)
                                             .tracking(-0.5)
@@ -292,11 +333,11 @@ struct FlightSearchView: View {
                                             .foregroundColor(colors.secondaryText)
                                         
                                         Text("No flights found")
-                                            .font(.title3)
+                                            .font(.cooperHeadline)
                                             .foregroundColor(colors.text)
                                         
                                         Text("Try a different search term")
-                                            .font(.callout)
+                                            .font(.cooperBody)
                                             .foregroundColor(colors.secondaryText)
                                     }
                                     .padding(.vertical, 16)
@@ -343,7 +384,13 @@ struct FlightSearchView: View {
                 }
             }
             .navigationTitle("Flight Search")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Flight Search")
+                        .font(.cooperLargeTitle)
+                        .foregroundColor(colors.text)
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     ThemeSelector(themeMode: $viewModel.themeMode, colors: colors)
                 }
@@ -356,18 +403,17 @@ struct FlightSearchView: View {
                 }
             }
             // Add onChange handler for searchText
-            .onChange(of: searchText) { newValue in
-                // Handle empty search
-                if newValue.isEmpty && viewModel.searched {
-                    // Reset the search if text is cleared
-                    viewModel.searchQuery = ""
-                }
+            .onChange(of: searchText) { oldValue, newValue in
+                // Reset UI state when search text changes
+                viewModel.searched = false
+                showNoResults = false
             }
             // Add onChange handler for searchMode
-            .onChange(of: searchMode) { newMode in
-                if newMode == .random && viewModel.viewRandomFlight == nil && !viewModel.isLoading {
-                    viewModel.getRandomFlight()
-                }
+            .onChange(of: searchMode) { oldValue, newMode in
+                // Reset when switching search modes
+                searchText = ""
+                viewModel.flights = []
+                viewModel.searched = false
             }
         }
     }
@@ -554,34 +600,40 @@ struct FlightSearchView: View {
                 }
                 
                 HStack(spacing: 16) {
-                    VStack(alignment: .leading) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("From")
+                            .font(.cooperSmall)
+                            .foregroundColor(colors.secondaryText)
+                        
                         Text(flight.departure)
-                            .font(.title3)
-                            .fontWeight(.bold)
+                            .font(.cooperTitle)
                             .foregroundColor(colors.text)
                         
                         Text(flight.departureCity)
-                            .font(.subheadline)
+                            .font(.cooperSmall)
                             .foregroundColor(colors.secondaryText)
                     }
                     
                     Spacer()
                     
                     Image(systemName: "airplane")
+                        .font(.title)
                         .foregroundColor(colors.accent)
-                        .imageScale(.large)
                         .rotationEffect(.degrees(90))
                     
                     Spacer()
                     
-                    VStack(alignment: .trailing) {
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text("To")
+                            .font(.cooperSmall)
+                            .foregroundColor(colors.secondaryText)
+                        
                         Text(flight.arrival)
-                            .font(.title3)
-                            .fontWeight(.bold)
+                            .font(.cooperTitle)
                             .foregroundColor(colors.text)
                         
                         Text(flight.arrivalCity)
-                            .font(.subheadline)
+                            .font(.cooperSmall)
                             .foregroundColor(colors.secondaryText)
                     }
                 }
@@ -622,19 +674,16 @@ struct FlightSearchView: View {
             }
             
             // Map
-            Map(coordinateRegion: .constant(getMKCoordinateRegion(from: flight)),
-                annotationItems: [flight]) { flight in
-                MapAnnotation(
-                    coordinate: CLLocationCoordinate2D(
-                        latitude: getLatitude(from: flight),
-                        longitude: getLongitude(from: flight)
-                    )
-                ) {
-                    Image(systemName: "airplane.circle.fill")
-                        .font(.title)
-                        .foregroundColor(colors.accent)
-                        .background(Circle().fill(Color.white).frame(width: 30, height: 30))
-                        .shadow(radius: 2)
+            Map(initialPosition: MapCameraPosition.region(getMKCoordinateRegion(from: flight))) {
+                Annotation("Departure", coordinate: CLLocationCoordinate2D(latitude: getLatitude(from: flight), longitude: getLongitude(from: flight))) {
+                    Circle()
+                        .fill(Color.blue)
+                        .frame(width: 10, height: 10)
+                }
+                Annotation("Arrival", coordinate: CLLocationCoordinate2D(latitude: getLatitude(from: flight) + 5.0, longitude: getLongitude(from: flight) + 5.0)) {
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 10, height: 10)
                 }
             }
             .edgesIgnoringSafeArea(.bottom)
@@ -659,16 +708,16 @@ struct FlightSearchView: View {
                 // Header
                 VStack {
                     Text(flight.airline)
-                        .font(.title2)
+                        .font(.cooperHeadline)
                         .foregroundColor(colors.text)
                     
                     Text(flight.flightNumber)
-                        .font(.title)
-                        .bold()
+                        .font(.cooperLargeTitle)
                         .foregroundColor(colors.accent)
                     
                     HStack {
                         Text(statusColor(for: flight.status) == .green ? "On Time" : flight.status)
+                            .font(.cooperSmall)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 3)
                             .background(statusColor(for: flight.status).opacity(0.2))
@@ -709,15 +758,15 @@ struct FlightSearchView: View {
                         
                         VStack(alignment: .trailing, spacing: 4) {
                             Text("To")
-                                .font(.caption)
+                                .font(.cooperSmall)
                                 .foregroundColor(colors.secondaryText)
                             
                             Text(flight.arrival)
-                                .font(.title)
-                                .bold()
+                                .font(.cooperTitle)
                                 .foregroundColor(colors.text)
                             
                             Text(flight.arrivalCity)
+                                .font(.cooperSmall)
                                 .foregroundColor(colors.secondaryText)
                         }
                     }
@@ -745,7 +794,7 @@ struct FlightSearchView: View {
                     HapticFeedbackManager.shared.mediumImpact()
                 }) {
                     Text("Find Another Flight")
-                        .fontWeight(.medium)
+                        .font(.cooperBody)
                         .padding(.vertical, 12)
                         .padding(.horizontal, 16)
                         .frame(maxWidth: .infinity)
@@ -764,13 +813,14 @@ struct FlightSearchView: View {
     private func flightDetailRow(title: String, value: String) -> some View {
         HStack {
             Text(title)
+                .font(.cooperSmall)
                 .foregroundColor(colors.secondaryText)
             
             Spacer()
             
             Text(value)
+                .font(.cooperBody)
                 .foregroundColor(colors.text)
-                .fontWeight(.medium)
         }
     }
     
@@ -954,4 +1004,82 @@ class PreviewFlightSearchViewModel: ObservableObject {
 // Preview
 #Preview {
     FlightSearchView.createForPreview()
+}
+
+struct FlightListItem: View {
+    let flight: ViewFlight
+    let colors: ThemeColors
+    
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            // Flight number and airline
+            VStack(alignment: .leading, spacing: 2) {
+                Text(flight.flightNumber)
+                    .font(.cooperHeadline)
+                    .foregroundColor(colors.text)
+                
+                Text(flight.airline)
+                    .font(.cooperSmall)
+                    .foregroundColor(colors.secondaryText)
+            }
+            
+            Spacer()
+            
+            // Route
+            HStack(spacing: 4) {
+                Text(flight.departure)
+                    .font(.cooperBody)
+                    .foregroundColor(colors.text)
+                
+                Image(systemName: "arrow.right")
+                    .font(.caption)
+                    .foregroundColor(colors.accent)
+                
+                Text(flight.arrival)
+                    .font(.cooperBody)
+                    .foregroundColor(colors.text)
+            }
+            
+            Spacer()
+            
+            // Status indicator
+            FlightStatusView(status: flight.status, colors: colors)
+        }
+    }
+}
+
+// FlightStatusView - Displays flight status with appropriate color
+struct FlightStatusView: View {
+    let status: String
+    let colors: ThemeColors
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(statusColor(for: status))
+                .frame(width: 8, height: 8)
+            
+            Text(status)
+                .font(.cooperSmall)
+                .foregroundColor(statusColor(for: status))
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 8)
+        .background(statusColor(for: status).opacity(0.1))
+        .cornerRadius(12)
+    }
+    
+    // Helper function to determine color based on status
+    private func statusColor(for status: String) -> Color {
+        let lowercaseStatus = status.lowercased()
+        if lowercaseStatus.contains("on time") || lowercaseStatus == "active" {
+            return .green
+        } else if lowercaseStatus.contains("delay") || lowercaseStatus.contains("wait") {
+            return .orange
+        } else if lowercaseStatus.contains("cancel") {
+            return .red
+        } else {
+            return .blue
+        }
+    }
 } 

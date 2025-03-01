@@ -100,23 +100,61 @@ public struct SlackAttachment: Identifiable, Hashable {
 }
 
 /// Represents a reaction to a Slack message
-public struct SlackReaction: Hashable {
+public struct SlackReaction: Identifiable, Hashable {
+    public var id: String { name } // Added for Identifiable conformance
     public let name: String       // Emoji name (e.g., "thumbsup")
     public let count: Int         // Number of users who reacted with this emoji
     public let userIds: [String]  // IDs of users who reacted
     
+    // Computed property to convert the name to an emoji for display
+    public var emoji: String {
+        return SlackReaction.emojiFromName(name)
+    }
+    
+    // Static method to convert emoji name to emoji
+    public static func emojiFromName(_ name: String) -> String {
+        // Map common reaction names to emoji
+        let emojiMap: [String: String] = [
+            "thumbsup": "👍",
+            "thumbsdown": "👎",
+            "heart": "❤️",
+            "joy": "😂",
+            "smile": "😀",
+            "tada": "🎉",
+            "clap": "👏",
+            "fire": "🔥",
+            "eyes": "👀",
+            "thinking_face": "🤔",
+            "pray": "🙏",
+            "100": "💯",
+            "rocket": "🚀",
+            "raised_hands": "🙌",
+            "ok_hand": "👌"
+        ]
+        
+        return emojiMap[name] ?? "👍" // Default to thumbs up if not found
+    }
+    
+    // Computed property to check if the current user has reacted
+    public var userHasReacted: Bool {
+        // This would need to be modified to check against the current user ID
+        return false
+    }
+    
+    // Initializer
     public init(name: String, count: Int, userIds: [String]) {
         self.name = name
         self.count = count
         self.userIds = userIds
     }
     
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(name)
-    }
-    
+    // Equatable conformance
     public static func == (lhs: SlackReaction, rhs: SlackReaction) -> Bool {
         return lhs.name == rhs.name
+    }
+    
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(name)
     }
 }
 

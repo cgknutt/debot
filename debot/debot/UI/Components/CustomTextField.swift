@@ -28,7 +28,7 @@ struct CustomTextField: View {
                 }
             }
             .textFieldStyle(CustomTextFieldStyle(isEditing: isEditing, hasError: errorMessage != nil))
-            .onChange(of: text) { _ in
+            .onChange(of: text) {
                 isEditing = true
             }
             
