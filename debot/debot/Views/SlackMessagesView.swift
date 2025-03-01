@@ -700,7 +700,7 @@ struct SlackMessagesView: View {
     
     // View mode for segmented control
     enum ViewMode {
-        case weekly, monthly
+        case daily, weekly, monthly
     }
     
     // External state for showing flights or messages
@@ -709,8 +709,9 @@ struct SlackMessagesView: View {
     @State private var showSlackSetup = false // Added state for setup sheet
     @State private var isPressed = false // For button animation
     
-    // Add this after the other @State variables
+    // For tracking visible messages
     @State private var visibleMessageIds: [String] = []
+    @State private var refreshTimer: Timer? = nil
     
     init(viewModel: SlackViewModel, showingFlights: Bool = false) {
         self._viewModel = ObservedObject(wrappedValue: viewModel)
@@ -756,6 +757,7 @@ struct SlackMessagesView: View {
             }
             .onAppear {
                 refreshMessages()
+                setupRefreshTimer()
                 
                 // Initialize voice over optimizations
                 if voiceOverEnabled {
@@ -763,6 +765,10 @@ struct SlackMessagesView: View {
                     // based on the user's device settings. The @Environment values above
                     // give us access to the current state.
                 }
+            }
+            .onDisappear {
+                refreshTimer?.invalidate()
+                refreshTimer = nil
             }
         }
         .sheet(isPresented: $showSlackSetup) {
@@ -773,6 +779,20 @@ struct SlackMessagesView: View {
         }
         .sheet(isPresented: $showingThreadView) {
             threadView
+        }
+    }
+    
+    // Setup a timer to fetch new messages periodically
+    private func setupRefreshTimer() {
+        // Cancel any existing timer
+        refreshTimer?.invalidate()
+        
+        // Create a new timer that runs every 20 seconds
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 20, repeats: true) { _ in
+            Task {
+                // Try to fetch the latest messages
+                await viewModel.fetchLatestMessages()
+            }
         }
     }
     
@@ -1424,18 +1444,9 @@ struct SlackMessagesView: View {
         
         // Perform an actual refresh
         Task {
-            await viewModel.forceRefreshMessages()
+            await viewModel.fetchLatestMessages()
             lastRefreshTime = Date()
         }
-    }
-    
-    // Add this method to handle marking messages as read
-    private func updateVisibleMessages(messageIds: [String]) {
-        // Store visible message IDs
-        visibleMessageIds = messageIds
-        
-        // Mark visible messages as read
-        viewModel.markVisibleMessagesAsRead(messagesIds: messageIds)
     }
     
     // Send message
@@ -1646,7 +1657,7 @@ struct SlackMessagesView: View {
             // Add a pull-to-refresh mechanism
             .refreshable {
                 // This uses the native pull-to-refresh gesture
-                await viewModel.forceRefreshMessages()
+                await viewModel.fetchLatestMessages()
                 lastRefreshTime = Date()
             }
         }

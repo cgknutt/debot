@@ -69,10 +69,19 @@ class SlackViewModel: ObservableObject {
         error = nil
         
         do {
+            // Load saved read status map from UserDefaults
+            let savedReadStatusMap = loadReadStatus()
+            
             // Save current read status map before loading new messages
-            let readStatusMap = Dictionary(uniqueKeysWithValues: 
+            let currentReadStatusMap = Dictionary(uniqueKeysWithValues: 
                 messages.map { ($0.id, $0.isRead) }
             )
+            
+            // Merge current and saved read status maps, giving preference to current
+            var readStatusMap = savedReadStatusMap
+            for (key, value) in currentReadStatusMap {
+                readStatusMap[key] = value
+            }
             
             print("Previous read status map: \(readStatusMap)")
             
@@ -330,6 +339,9 @@ class SlackViewModel: ObservableObject {
             )
             messages[index] = updatedMessage
             updateUnreadCount()
+            
+            // Persist the read status in UserDefaults
+            saveReadStatus()
         }
     }
     
@@ -762,6 +774,8 @@ class SlackViewModel: ObservableObject {
         
         if didMarkAnyAsRead {
             updateUnreadCount()
+            // Persist the read status in UserDefaults
+            saveReadStatus()
         }
     }
     
@@ -772,10 +786,19 @@ class SlackViewModel: ObservableObject {
         isLoading = true
         error = nil
         
+        // Load saved read status map from UserDefaults
+        let savedReadStatusMap = loadReadStatus()
+        
         // Save current read status map
-        let readStatusMap = Dictionary(uniqueKeysWithValues: 
+        let currentReadStatusMap = Dictionary(uniqueKeysWithValues: 
             messages.map { ($0.id, $0.isRead) }
         )
+        
+        // Merge current and saved read status maps, giving preference to current
+        var readStatusMap = savedReadStatusMap
+        for (key, value) in currentReadStatusMap {
+            readStatusMap[key] = value
+        }
         
         print("Forcing complete refresh of messages")
         
@@ -809,9 +832,25 @@ class SlackViewModel: ObservableObject {
                 }
                 
                 await MainActor.run {
-                    self.messages = finalMessages
+                    // Include any existing messages and add the new ones
+                    let oldMessages = self.messages
+                    
+                    // Create a combined array of messages
+                    var combinedMessages = finalMessages
+                    
+                    // Add any old messages that aren't in the new set
+                    for oldMessage in oldMessages {
+                        if !combinedMessages.contains(where: { $0.id == oldMessage.id }) {
+                            combinedMessages.append(oldMessage)
+                        }
+                    }
+                    
+                    // Sort messages by timestamp (newest first)
+                    self.messages = combinedMessages.sorted(by: { $0.timestamp > $1.timestamp })
                     self.updateUnreadCount()
                     self.isLoading = false
+                    // Save the updated read status
+                    self.saveReadStatus()
                 }
             } else {
                 // For real API, clear the cache and force reload
@@ -835,6 +874,115 @@ class SlackViewModel: ObservableObject {
         }
     }
     
+    // MARK: - Fetch only the latest messages
+    
+    /// Fetch only the most recent messages to update the view
+    func fetchLatestMessages() async {
+        if isLoading { return } // Prevent multiple simultaneous refreshes
+        
+        print("Fetching latest messages...")
+        
+        do {
+            if useMockData {
+                // Generate new bot messages
+                let newBotMessage = SlackMessage(
+                    id: "msg_bot_new_\(Int(Date().timeIntervalSince1970))",
+                    userId: "U222",
+                    userName: "Bot Test User",
+                    userAvatar: nil,
+                    channelId: "C001",
+                    channelName: "general",
+                    text: "This is a new test message from the bot! Timestamp: \(Date().timeIntervalSince1970)",
+                    timestamp: Date(),
+                    isRead: false
+                )
+                
+                await MainActor.run {
+                    // Add the new message to the existing message array
+                    self.messages.insert(newBotMessage, at: 0)
+                    self.updateUnreadCount()
+                }
+            } else {
+                // For real API, fetch only the latest messages without clearing the cache
+                try await fetchLatestRealMessages()
+                
+                // Update UI state
+                isConnected = true
+            }
+        } catch {
+            print("Error fetching latest messages: \(error.localizedDescription)")
+        }
+    }
+    
+    /// Fetch only the latest real messages from Slack API
+    private func fetchLatestRealMessages() async throws {
+        // Get channels from Slack API
+        let channels = try await SlackAPI.shared.getChannels()
+        
+        // Store channels in channel map
+        for channel in channels {
+            if channel.is_member {
+                channelMap[channel.id] = channel.name
+            }
+        }
+        
+        var newMessages: [SlackMessage] = []
+        
+        // Get messages for each channel
+        for channel in channels where channel.is_member {
+            print("Fetching latest messages for channel: \(channel.name) (\(channel.id))")
+            
+            do {
+                let apiMessages = try await SlackAPI.shared.getMessages(channelId: channel.id)
+                
+                if !apiMessages.isEmpty {
+                    // Process only the messages
+                    var channelMessages: [SlackMessage] = []
+                    processMessages(apiMessages, channel: channel, allMessages: &channelMessages, readStatusMap: [:])
+                    
+                    // Find the newest message timestamp we have
+                    var latestTimestamp: Date? = nil
+                    if let existingChannelMessages = messages.filter({ $0.channelId == channel.id }).first {
+                        latestTimestamp = existingChannelMessages.timestamp
+                    }
+                    
+                    // Filter to only include messages newer than what we have
+                    let newChannelMessages = channelMessages.filter { message in
+                        if let latestTimestamp = latestTimestamp {
+                            return message.timestamp > latestTimestamp
+                        }
+                        return true
+                    }
+                    
+                    newMessages.append(contentsOf: newChannelMessages)
+                }
+            } catch {
+                print("Error getting latest messages for channel \(channel.name): \(error.localizedDescription)")
+                // Continue with other channels even if one fails
+            }
+        }
+        
+        // Update messages on the main thread
+        await MainActor.run {
+            if !newMessages.isEmpty {
+                // Combine existing and new messages
+                var combinedMessages = self.messages
+                
+                // Add new messages
+                for newMessage in newMessages {
+                    // Don't add duplicates
+                    if !combinedMessages.contains(where: { $0.id == newMessage.id }) {
+                        combinedMessages.append(newMessage)
+                    }
+                }
+                
+                // Sort messages by timestamp (newest first)
+                self.messages = combinedMessages.sorted(by: { $0.timestamp > $1.timestamp })
+                self.updateUnreadCount()
+            }
+        }
+    }
+    
     // Generate fresh mock messages with current timestamp
     private func generateFreshMockMessages() -> [SlackMessage] {
         let now = Date()
@@ -846,7 +994,7 @@ class SlackViewModel: ObservableObject {
         // General channel messages (with recent timestamps)
         mockMessages.append(
             SlackMessage(
-                id: "msg1_\(Int(now.timeIntervalSince1970))",
+                id: "msg1",  // Use fixed IDs instead of timestamp-based ones
                 userId: "U123",
                 userName: "John Doe",
                 userAvatar: nil,
@@ -860,7 +1008,7 @@ class SlackViewModel: ObservableObject {
         
         mockMessages.append(
             SlackMessage(
-                id: "msg2_\(Int(now.timeIntervalSince1970))",
+                id: "msg2",  // Use fixed IDs instead of timestamp-based ones
                 userId: "U456",
                 userName: "Jane Smith",
                 userAvatar: nil,
@@ -875,7 +1023,7 @@ class SlackViewModel: ObservableObject {
         // Add a very recent message to simulate new content
         mockMessages.append(
             SlackMessage(
-                id: "msg_new_\(Int(now.timeIntervalSince1970))",
+                id: "msg_bot",  // Use fixed IDs instead of timestamp-based ones
                 userId: "U222",
                 userName: "Bot Test User",
                 userAvatar: nil,
@@ -888,5 +1036,24 @@ class SlackViewModel: ObservableObject {
         )
         
         return mockMessages
+    }
+    
+    // Save message read status to UserDefaults
+    private func saveReadStatus() {
+        let readStatusMap = Dictionary(uniqueKeysWithValues: 
+            messages.map { ($0.id, $0.isRead) }
+        )
+        if let data = try? JSONEncoder().encode(readStatusMap) {
+            storage.set(data, forKey: "slackReadStatusMap")
+        }
+    }
+    
+    // Load message read status from UserDefaults
+    private func loadReadStatus() -> [String: Bool] {
+        if let data = storage.data(forKey: "slackReadStatusMap"),
+           let readStatusMap = try? JSONDecoder().decode([String: Bool].self, from: data) {
+            return readStatusMap
+        }
+        return [:]
     }
 } 
