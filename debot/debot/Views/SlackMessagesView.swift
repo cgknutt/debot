@@ -82,8 +82,16 @@ extension Color {
     // Status colors
     static let statusSuccess = Color(UIColor.systemGreen).opacity(0.9)
     static let statusWarning = Color(UIColor.systemOrange).opacity(0.9)
-    static let statusInfo = Color.debotOrange.opacity(0.9)
+    static let statusInfo = Theme.Colors.debotOrange.opacity(0.9)
     static let statusError = Color(UIColor.systemRed).opacity(0.9)
+    
+    // Divider colors with dark/light mode support
+    static func dividerColor(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color.white.opacity(0.15) : Color.black.opacity(0.1)
+    }
+    
+    // For legacy support
+    static let dividerColor = Color.gray.opacity(0.2)
 }
 
 // MARK: - Theme Colors Environment Key
@@ -402,7 +410,7 @@ class TimeZoneAwareFormatter {
     }
 }
 
-// Error handling and retry
+// MARK: - Error handling and retry
 class ErrorManager {
     static let shared = ErrorManager()
     
@@ -426,6 +434,11 @@ class ErrorManager {
         let currentCount = retryCount[operation] ?? 0
         // Exponential backoff: 1s, 2s, 4s
         return pow(2.0, Double(currentCount - 1))
+    }
+    
+    func hasExceededRetries(forOperation operation: String) -> Bool {
+        let currentCount = retryCount[operation] ?? 0
+        return currentCount >= maxRetries
     }
 }
 
@@ -581,6 +594,57 @@ struct MessageRow: View {
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.dividerColor(for: colorScheme), lineWidth: 0.5)
+        )
+    }
+}
+
+// MARK: - SlackAttachmentView
+struct SlackAttachmentView: View {
+    let attachment: SlackAttachment
+    @Environment(\.colorScheme) var colorScheme
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let title = attachment.title, !title.isEmpty {
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Color.textPrimary(for: colorScheme))
+            }
+            
+            if let text = attachment.text, !text.isEmpty {
+                Text(text)
+                    .font(.system(size: 13))
+                    .foregroundColor(Color.textSecondary(for: colorScheme))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            
+            if let imageUrl = attachment.imageUrl, !imageUrl.isEmpty {
+                AsyncImage(url: URL(string: imageUrl)) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                } placeholder: {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.2))
+                        .aspectRatio(2/1, contentMode: .fit)
+                }
+                .cornerRadius(8)
+            }
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.bgTertiary(for: colorScheme))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(
+                    attachment.color?.isEmpty == false ? 
+                        Color(uiHex: attachment.color!) : 
+                        Color.dividerColor(for: colorScheme),
+                    lineWidth: 2
+                )
+                .padding(0.5)
         )
     }
 }
@@ -1046,6 +1110,7 @@ struct SlackMessagesView: View {
                                 .background(
                                     Capsule()
                                         .fill(Color.bgTertiary(for: colorScheme).opacity(0.6))
+                                )
                                 .onTapGesture {
                                     viewModel.toggleReaction(emoji: reaction.name, messageId: message.id)
                                 }
@@ -1505,7 +1570,44 @@ struct SlackMessagesView: View {
                 let displayedMessages = filteredMessages
                 
                 if displayedMessages.isEmpty && !viewModel.isLoading {
-                    emptyStateView
+                    VStack(spacing: 16) {
+                        Image(systemName: "tray")
+                            .font(.system(size: 48))
+                            .foregroundColor(Color.textTertiary(for: colorScheme))
+                        
+                        if !searchText.isEmpty {
+                            Text("No messages match your search")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(Color.textSecondary(for: colorScheme))
+                                .multilineTextAlignment(.center)
+                        } else if let channelId = selectedChannelId {
+                            let channelName = selectedChannelName
+                            Text("No messages in \(channelName)")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(Color.textSecondary(for: colorScheme))
+                                .multilineTextAlignment(.center)
+                            
+                            Button(action: {
+                                messageText = ""
+                                isComposing = true
+                            }) {
+                                Text("Start the conversation")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 10)
+                                    .background(Theme.Colors.debotOrange)
+                                    .cornerRadius(8)
+                            }
+                        } else {
+                            Text("No messages")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(Color.textSecondary(for: colorScheme))
+                                .multilineTextAlignment(.center)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 40)
                 } else {
                     ForEach(displayedMessages) { message in
                         MessageRow(message: message, viewModel: viewModel, showReactionPicker: {
