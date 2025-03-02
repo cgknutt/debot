@@ -195,7 +195,7 @@ class SlackViewModel: ObservableObject {
                             channelId: message.channelId,
                             channelName: message.channelName,
                             text: message.text,
-                            timestamp: message.timestamp,
+                            timestamp: String(message.timestamp.timeIntervalSince1970),
                             isRead: true,
                             attachments: message.attachments,
                             threadParentId: message.threadParentId,
@@ -329,7 +329,7 @@ class SlackViewModel: ObservableObject {
         }
         
         // Sort messages by timestamp (newest first)
-        messages = allMessages.sorted(by: { $0.timestamp > $1.timestamp })
+        messages = allMessages.sorted(by: { $0.timestampDouble > $1.timestampDouble })
         
         // Update hasMoreMessages flag
         hasMoreMessages = hasMore
@@ -374,7 +374,7 @@ class SlackViewModel: ObservableObject {
                     channelId: initialMessage.channelId,
                     channelName: initialMessage.channelName,
                     text: initialMessage.text,
-                    timestamp: initialMessage.timestamp,
+                    timestamp: String(initialMessage.timestamp.timeIntervalSince1970),
                     isRead: true,
                     attachments: initialMessage.attachments,
                     threadParentId: initialMessage.threadParentId,
@@ -414,7 +414,7 @@ class SlackViewModel: ObservableObject {
                                 channelId: channelId,
                                 channelName: channelName,
                                 text: self.messages[index].text,
-                                timestamp: self.messages[index].timestamp,
+                                timestamp: String(self.messages[index].timestamp.timeIntervalSince1970),
                                 isRead: self.messages[index].isRead,
                                 attachments: self.messages[index].attachments,
                                 threadParentId: self.messages[index].threadParentId,
@@ -435,7 +435,7 @@ class SlackViewModel: ObservableObject {
         }
         
         // Sort messages by timestamp (newest first)
-        self.messages = allMessages.sorted(by: { $0.timestamp > $1.timestamp })
+        self.messages = allMessages.sorted(by: { $0.timestampDouble > $1.timestampDouble })
     }
     
     func markAsRead(messageId: String) {
@@ -449,7 +449,7 @@ class SlackViewModel: ObservableObject {
                 channelId: message.channelId,
                 channelName: message.channelName,
                 text: message.text,
-                timestamp: message.timestamp,
+                timestamp: String(message.timestamp.timeIntervalSince1970),
                 isRead: true,
                 attachments: message.attachments,
                 threadParentId: message.threadParentId,
@@ -476,7 +476,7 @@ class SlackViewModel: ObservableObject {
                 channelId: message.channelId,
                 channelName: message.channelName,
                 text: message.text,
-                timestamp: message.timestamp,
+                timestamp: String(message.timestamp.timeIntervalSince1970),
                 isRead: !message.isRead, // Toggle the read status
                 attachments: message.attachments,
                 threadParentId: message.threadParentId,
@@ -502,7 +502,7 @@ class SlackViewModel: ObservableObject {
                 channelId: message.channelId,
                 channelName: message.channelName,
                 text: message.text,
-                timestamp: message.timestamp,
+                timestamp: String(message.timestamp.timeIntervalSince1970),
                 isRead: true,
                 attachments: message.attachments,
                 threadParentId: message.threadParentId,
@@ -650,7 +650,7 @@ class SlackViewModel: ObservableObject {
                 channelId: "C001",
                 channelName: "general",
                 text: "Hi team! I just pushed the latest updates to the repo.",
-                timestamp: calendar.date(byAdding: .minute, value: -45, to: startDate) ?? startDate,
+                timestamp: String((calendar.date(byAdding: .minute, value: -45, to: startDate) ?? startDate).timeIntervalSince1970),
                 isRead: false
             )
         )
@@ -664,7 +664,7 @@ class SlackViewModel: ObservableObject {
                 channelId: "C001",
                 channelName: "general",
                 text: "Great job! The new features look awesome.",
-                timestamp: calendar.date(byAdding: .minute, value: -30, to: startDate) ?? startDate,
+                timestamp: String((calendar.date(byAdding: .minute, value: -30, to: startDate) ?? startDate).timeIntervalSince1970),
                 isRead: true
             )
         )
@@ -679,7 +679,7 @@ class SlackViewModel: ObservableObject {
                 channelId: "C002",
                 channelName: "dev",
                 text: "Anyone facing issues with the latest API?",
-                timestamp: calendar.date(byAdding: .minute, value: -20, to: startDate) ?? startDate,
+                timestamp: String((calendar.date(byAdding: .minute, value: -20, to: startDate) ?? startDate).timeIntervalSince1970),
                 isRead: false,
                 attachments: [
                     SlackAttachment(
@@ -701,7 +701,7 @@ class SlackViewModel: ObservableObject {
                 channelId: "C002",
                 channelName: "dev",
                 text: "I'll look into it. Can you provide more details?",
-                timestamp: calendar.date(byAdding: .minute, value: -15, to: startDate) ?? startDate,
+                timestamp: String((calendar.date(byAdding: .minute, value: -15, to: startDate) ?? startDate).timeIntervalSince1970),
                 isRead: false
             )
         )
@@ -716,7 +716,7 @@ class SlackViewModel: ObservableObject {
                 channelId: "C003",
                 channelName: "random",
                 text: "Check out this cool article about Swift!",
-                timestamp: calendar.date(byAdding: .minute, value: -60, to: startDate) ?? startDate,
+                timestamp: String((calendar.date(byAdding: .minute, value: -60, to: startDate) ?? startDate).timeIntervalSince1970),
                 isRead: true,
                 attachments: [
                     SlackAttachment(
@@ -739,7 +739,7 @@ class SlackViewModel: ObservableObject {
                 channelId: "C004",
                 channelName: "design",
                 text: "New app icon options - what do you think?",
-                timestamp: calendar.date(byAdding: .minute, value: -100, to: startDate) ?? startDate,
+                timestamp: String((calendar.date(byAdding: .minute, value: -100, to: startDate) ?? startDate).timeIntervalSince1970),
                 isRead: true,
                 attachments: [
                     SlackAttachment(
@@ -768,7 +768,7 @@ class SlackViewModel: ObservableObject {
                 channelId: "C003",
                 channelName: "general",
                 text: "When is our next team meeting?",
-                timestamp: calendar.date(byAdding: .hour, value: -3, to: startDate) ?? startDate,
+                timestamp: String((calendar.date(byAdding: .hour, value: -3, to: startDate) ?? startDate).timeIntervalSince1970),
                 isRead: false,
                 replyCount: 2,
                 isThreadParent: true
@@ -785,7 +785,7 @@ class SlackViewModel: ObservableObject {
                 channelId: "C003",
                 channelName: "general",
                 text: "Tomorrow at 10 AM",
-                timestamp: calendar.date(byAdding: .hour, value: -2, to: startDate) ?? startDate,
+                timestamp: String((calendar.date(byAdding: .hour, value: -2, to: startDate) ?? startDate).timeIntervalSince1970),
                 isRead: true,
                 threadParentId: "\(idPrefix)7"
             )
@@ -800,7 +800,7 @@ class SlackViewModel: ObservableObject {
                 channelId: "C003",
                 channelName: "general",
                 text: "Thanks! I'll be there.",
-                timestamp: calendar.date(byAdding: .hour, value: -1, to: startDate) ?? startDate,
+                timestamp: String((calendar.date(byAdding: .hour, value: -1, to: startDate) ?? startDate).timeIntervalSince1970),
                 isRead: true,
                 threadParentId: "\(idPrefix)7"
             )
@@ -816,11 +816,11 @@ class SlackViewModel: ObservableObject {
                 channelId: "C001",
                 channelName: "general",
                 text: "Our new feature is now live! 🎉",
-                timestamp: calendar.date(byAdding: .day, value: -1, to: startDate) ?? startDate,
+                timestamp: String(Date().timeIntervalSince1970),
                 isRead: true,
                 reactions: [
-                    SlackReaction(name: "thumbsup", count: 3, userIds: ["U123", "U789", "U111"]),
-                    SlackReaction(name: "heart", count: 2, userIds: ["U222", "U333"])
+                    SlackReaction(name: "thumbsup", count: 3, users: ["U123", "U789", "U111"]),
+                    SlackReaction(name: "heart", count: 2, users: ["U222", "U333"])
                 ]
             )
         )
@@ -923,9 +923,9 @@ class SlackViewModel: ObservableObject {
         if let parent = parent {
             var threadMessages = [parent]
             threadMessages.append(contentsOf: replies)
-            return threadMessages.sorted(by: { $0.timestamp < $1.timestamp })
+            return threadMessages.sorted(by: { $0.timestampDouble > $1.timestampDouble })
         } else {
-            return replies.sorted(by: { $0.timestamp < $1.timestamp })
+            return replies.sorted(by: { $0.timestampDouble > $1.timestampDouble })
         }
     }
     
@@ -963,7 +963,7 @@ class SlackViewModel: ObservableObject {
             channelId: parentMessage.channelId,
             channelName: parentMessage.channelName,
             text: text,
-            timestamp: timestamp,
+            timestamp: String(timestamp.timeIntervalSince1970),
             isRead: true,
             threadParentId: parentId,
             isThreadParent: false
@@ -994,7 +994,7 @@ class SlackViewModel: ObservableObject {
                     channelId: message.channelId,
                     channelName: message.channelName,
                     text: message.text,
-                    timestamp: message.timestamp,
+                    timestamp: String(message.timestamp.timeIntervalSince1970),
                     isRead: true,
                     attachments: message.attachments,
                     threadParentId: message.threadParentId,
@@ -1053,7 +1053,7 @@ class SlackViewModel: ObservableObject {
                             channelId: message.channelId,
                             channelName: message.channelName,
                             text: message.text,
-                            timestamp: message.timestamp,
+                            timestamp: String(message.timestamp.timeIntervalSince1970),
                             isRead: true,
                             attachments: message.attachments,
                             threadParentId: message.threadParentId,
@@ -1081,7 +1081,7 @@ class SlackViewModel: ObservableObject {
                     }
                     
                     // Sort messages by timestamp (newest first)
-                    self.messages = combinedMessages.sorted(by: { $0.timestamp > $1.timestamp })
+                    self.messages = combinedMessages.sorted(by: { $0.timestampDouble > $1.timestampDouble })
                     self.updateUnreadCount()
                     self.isLoading = false
                     // Save the updated read status
@@ -1128,7 +1128,7 @@ class SlackViewModel: ObservableObject {
                     channelId: "C001",
                     channelName: "general",
                     text: "This is a new test message from the bot! Timestamp: \(Date().timeIntervalSince1970)",
-                    timestamp: Date(),
+                    timestamp: String(Date().timeIntervalSince1970),
                     isRead: false
                 )
                 
@@ -1212,7 +1212,7 @@ class SlackViewModel: ObservableObject {
                 }
                 
                 // Sort messages by timestamp (newest first)
-                self.messages = combinedMessages.sorted(by: { $0.timestamp > $1.timestamp })
+                self.messages = combinedMessages.sorted(by: { $0.timestampDouble > $1.timestampDouble })
                 self.updateUnreadCount()
             }
         }
@@ -1236,7 +1236,7 @@ class SlackViewModel: ObservableObject {
                 channelId: "C001",
                 channelName: "general",
                 text: "Hi team! I just pushed the latest updates to the repo.",
-                timestamp: calendar.date(byAdding: .minute, value: -2, to: now) ?? now,
+                timestamp: String((calendar.date(byAdding: .minute, value: -2, to: now) ?? now).timeIntervalSince1970),
                 isRead: false
             )
         )
@@ -1250,7 +1250,7 @@ class SlackViewModel: ObservableObject {
                 channelId: "C001",
                 channelName: "general",
                 text: "Great job! The new features look awesome.",
-                timestamp: calendar.date(byAdding: .minute, value: -1, to: now) ?? now,
+                timestamp: String((calendar.date(byAdding: .minute, value: -1, to: now) ?? now).timeIntervalSince1970),
                 isRead: false
             )
         )
@@ -1265,7 +1265,7 @@ class SlackViewModel: ObservableObject {
                 channelId: "C001",
                 channelName: "general",
                 text: "This is a new test message sent to the bot!",
-                timestamp: now,
+                timestamp: String(now.timeIntervalSince1970),
                 isRead: false
             )
         )
@@ -1357,7 +1357,7 @@ class SlackViewModel: ObservableObject {
             await MainActor.run {
                 let additionalMockMessages = generateMockMessages(older: true)
                 messages.append(contentsOf: additionalMockMessages)
-                messages.sort(by: { $0.timestamp > $1.timestamp })
+                messages.sort(by: { $0.timestampDouble > $1.timestampDouble })
                 isLoadingMore = false
                 hasMoreMessages = true // Always allow loading more in mock mode
             }
@@ -1402,7 +1402,7 @@ class SlackViewModel: ObservableObject {
                 messages.append(contentsOf: newMessages)
                 
                 // Sort all messages by timestamp (newest first)
-                messages.sort(by: { $0.timestamp > $1.timestamp })
+                messages.sort(by: { $0.timestampDouble > $1.timestampDouble })
                 
                 // Update flags
                 isLoadingMore = false

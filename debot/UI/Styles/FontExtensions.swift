@@ -66,11 +66,10 @@ extension Font {
     /// Lists all available fonts in the app to help debug font loading issues
     /// Call this function from an appropriate place to verify font registration
     static func debugPrintAvailableFonts() {
-        print("=== AVAILABLE FONTS ===")
-        for family in UIFont.familyNames.sorted() {
-            let names = UIFont.fontNames(forFamilyName: family)
-            print("👉 Family: \(family) Font names: \(names)")
-        }
-        print("======================")
+        // Use our structured FontDebugger utility for consistent font debugging
+        FontDebugger.listAllFonts()
+        
+        // Also check specifically for Cooper fonts which are important for our app
+        FontDebugger.debugFonts()
     }
 } 

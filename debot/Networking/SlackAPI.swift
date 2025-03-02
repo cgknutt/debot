@@ -135,7 +135,7 @@ class SlackAPI {
         }
     }
     
-    func getUserInfo(userId: String) async throws -> SlackUser {
+    func getUserInfo(userId: String) async throws -> SlackAPIUser {
         var urlComponents = URLComponents(string: "https://slack.com/api/users.info")!
         urlComponents.queryItems = [
             URLQueryItem(name: "user", value: userId)
@@ -511,7 +511,7 @@ class SlackAPI {
     // User Response
     struct UserResponse: Decodable {
         let ok: Bool
-        let user: SlackUser
+        let user: SlackAPIUser
         let error: String?
     }
 }
@@ -526,7 +526,7 @@ struct SlackChannelResponse: Decodable, Identifiable {
 }
 
 // User Model for API
-struct SlackUser: Decodable {
+struct SlackAPIUser: Decodable {
     let id: String
     let name: String
     let real_name: String?
@@ -656,7 +656,7 @@ struct SlackAPIMessage: Decodable {
             channelId: channelId,
             channelName: channelName,
             text: text,
-            timestamp: Date(timeIntervalSince1970: timestamp),
+            timestamp: String(timestamp),
             isRead: isRead,
             attachments: messageAttachments,
             threadParentId: thread_ts,

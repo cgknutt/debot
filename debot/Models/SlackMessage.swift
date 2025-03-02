@@ -15,6 +15,7 @@ struct SlackMessage: Identifiable, Equatable, Hashable {
     let isThreadParent: Bool
     let threadTs: String?
     let attachments: [SlackAttachment]
+    var isRead: Bool = false
     
     var formattedTime: String {
         guard let timeInterval = Double(timestamp) else { return "" }
@@ -25,12 +26,49 @@ struct SlackMessage: Identifiable, Equatable, Hashable {
         return formatter.string(from: date)
     }
     
+    // Add a computed property for timestamp as Double for sorting
+    var timestampDouble: Double {
+        return Double(timestamp) ?? 0
+    }
+    
     static func == (lhs: SlackMessage, rhs: SlackMessage) -> Bool {
         return lhs.id == rhs.id
     }
     
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
+    }
+    
+    init(
+        id: String,
+        userId: String,
+        userName: String,
+        userAvatar: URL? = nil,
+        channelId: String,
+        channelName: String?,
+        text: String,
+        timestamp: String,
+        isRead: Bool = false,
+        attachments: [SlackAttachment] = [],
+        threadParentId: String? = nil,
+        replyCount: Int? = nil,
+        isThreadParent: Bool = false,
+        reactions: [SlackReaction] = []
+    ) {
+        self.id = id
+        self.userId = userId
+        self.userName = userName
+        self.userAvatar = userAvatar
+        self.channelId = channelId
+        self.channelName = channelName
+        self.text = text
+        self.timestamp = timestamp
+        self.attachments = attachments
+        self.threadTs = threadParentId
+        self.threadReplies = replyCount ?? 0
+        self.isThreadParent = isThreadParent
+        self.reactions = reactions
+        self.isRead = isRead
     }
 }
 
